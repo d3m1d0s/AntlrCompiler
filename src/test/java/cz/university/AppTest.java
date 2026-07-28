@@ -831,6 +831,42 @@ public class AppTest {
     }
 
     @Test
+    public void testUndeclaredVariableInForInitIsReportedAsTypeError() {
+        System.out.println("---- testUndeclaredVariableInForInitIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("for (q = 0; true; ) ;\n");
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("1: variable 'q' not declared.", errors.get(0));
+    }
+
+    @Test
+    public void testUndeclaredVariableInForUpdateIsReportedAsTypeError() {
+        System.out.println("---- testUndeclaredVariableInForUpdateIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("""
+        int i;
+        for (i = 0; true; q = 1) ;
+        """);
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("2: variable 'q' not declared.", errors.get(0));
+    }
+
+    @Test
+    public void testIncompatibleTypeInForInitIsReportedAsTypeError() {
+        System.out.println("---- testIncompatibleTypeInForInitIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("""
+        int i;
+        for (i = "text"; true; ) ;
+        """);
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("2,5: Incompatible types in for-init: INT and STRING", errors.get(0));
+    }
+
+    @Test
     public void testForInitPromotesIntToFloat() {
         System.out.println("---- testForInitPromotesIntToFloat ----");
         String input = """

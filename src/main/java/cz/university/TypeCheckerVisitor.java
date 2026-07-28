@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<SymbolTable.Type> {
 
@@ -296,17 +297,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     @Override
     public SymbolTable.Type visitForStatement(cz.university.LanguageParser.ForStatementContext ctx) {
         if (ctx.forInit() != null && ctx.forInit().getChildCount() > 0) {
-            String var = ctx.forInit().IDENTIFIER().getText();
-            SymbolTable.Type varType = null;
-            try {
-                varType = symbolTable.getType(var, ctx.getStart().getLine());
-            } catch (TypeException e) {
-                throw new RuntimeException(e);
-            }
-            SymbolTable.Type valueType = visit(ctx.forInit().expr());
-            if (!isCompatible(varType, valueType)) {
-                typeError(ctx.forInit().start, "Incompatible types in for-init: " + varType + " and " + valueType);
-            }
+            checkHeaderAssignment(ctx.forInit().IDENTIFIER(), ctx.forInit().expr(), "for-init");
         }
 
         if (ctx.forCond() != null && ctx.forCond().expr() != null) {
@@ -317,17 +308,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         }
 
         if (ctx.forUpdate() != null && ctx.forUpdate().getChildCount() > 0) {
-            String var = ctx.forUpdate().IDENTIFIER().getText();
-            SymbolTable.Type varType = null;
-            try {
-                varType = symbolTable.getType(var, ctx.getStart().getLine());
-            } catch (TypeException e) {
-                throw new RuntimeException(e);
-            }
-            SymbolTable.Type valueType = visit(ctx.forUpdate().expr());
-            if (!isCompatible(varType, valueType)) {
-                typeError(ctx.forUpdate().start, "Incompatible types in for-update: " + varType + " and " + valueType);
-            }
+            checkHeaderAssignment(ctx.forUpdate().IDENTIFIER(), ctx.forUpdate().expr(), "for-update");
         }
 
         visit(ctx.statement());
@@ -368,6 +349,21 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     // === Helpers ===
+
+    private void checkHeaderAssignment(TerminalNode id, cz.university.LanguageParser.ExprContext expr, String clause) {
+        SymbolTable.Type varType = null;
+        try {
+            varType = symbolTable.getType(id.getText(), id.getSymbol().getLine());
+        } catch (TypeException e) {
+            errors.add(e.getMessage());
+        }
+
+        SymbolTable.Type valueType = visit(expr);
+
+        if (varType != null && valueType != null && !isCompatible(varType, valueType)) {
+            typeError(id.getSymbol(), "Incompatible types in " + clause + ": " + varType + " and " + valueType);
+        }
+    }
 
     private SymbolTable.Type computeBinaryNumericType(SymbolTable.Type left, SymbolTable.Type right,  ParserRuleContext ctx) {
         if (left == null || right == null) return null;
