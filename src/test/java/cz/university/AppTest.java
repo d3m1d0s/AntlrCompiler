@@ -831,6 +831,60 @@ public class AppTest {
     }
 
     @Test
+    public void testForInitPromotesIntToFloat() {
+        System.out.println("---- testForInitPromotesIntToFloat ----");
+        String input = """
+        float f;
+        for (f = 0; f < 2.0; f = f + 1) write f;
+        """;
+
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push F 0.0", "save f",
+                "push I 0", "itof", "save f",
+                "label 0",
+                "load f", "push F 2.0", "lt F", "fjmp 1",
+                "load f", "print 1",
+                "load f", "push I 1", "itof", "add F", "save f",
+                "jmp 0",
+                "label 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testForUpdatePromotesIntToFloat() {
+        System.out.println("---- testForUpdatePromotesIntToFloat ----");
+        String input = """
+        float f;
+        for (f = 0.0; f < 1.0; f = 2) write f;
+        """;
+
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push F 0.0", "save f",
+                "push F 0.0", "save f",
+                "label 0",
+                "load f", "push F 1.0", "lt F", "fjmp 1",
+                "load f", "print 1",
+                "push I 2", "itof", "save f",
+                "jmp 0",
+                "label 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
     public void testAssignmentInsideExpressionStoresAndYieldsValue() {
         System.out.println("---- testAssignmentInsideExpressionStoresAndYieldsValue ----");
         String input = """

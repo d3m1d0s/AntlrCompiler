@@ -408,15 +408,8 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         String endLabel = nextLabel();
 
         if (ctx.forInit() != null && ctx.forInit().getChildCount() > 0) {
-            String var = ctx.forInit().IDENTIFIER().getText();
-            SymbolTable.Type type = null;
-            try {
-                type = symbolTable.getType(var, ctx.getStart().getLine());
-            } catch (TypeException e) {
-                throw new RuntimeException(e);
-            }
-            visit(ctx.forInit().expr());
-            addSaveInstruction(type, var);
+            generateHeaderAssignment(ctx.forInit().IDENTIFIER().getText(),
+                    ctx.forInit().expr(), ctx.getStart().getLine());
         }
 
         instructions.add(new Instruction(Instruction.OpCode.LABEL, startLabel));
@@ -429,15 +422,8 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         visit(ctx.statement());
 
         if (ctx.forUpdate() != null && ctx.forUpdate().getChildCount() > 0) {
-            String var = ctx.forUpdate().IDENTIFIER().getText();
-            SymbolTable.Type type = null;
-            try {
-                type = symbolTable.getType(var, ctx.getStart().getLine());
-            } catch (TypeException e) {
-                throw new RuntimeException(e);
-            }
-            visit(ctx.forUpdate().expr());
-            addSaveInstruction(type, var);
+            generateHeaderAssignment(ctx.forUpdate().IDENTIFIER().getText(),
+                    ctx.forUpdate().expr(), ctx.getStart().getLine());
         }
 
         instructions.add(new Instruction(Instruction.OpCode.JMP, startLabel));
@@ -549,6 +535,22 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         }
     }
 
+
+    private void generateHeaderAssignment(String name, cz.university.LanguageParser.ExprContext expr, int line) {
+        SymbolTable.Type varType;
+        try {
+            varType = symbolTable.getType(name, line);
+        } catch (TypeException e) {
+            throw new RuntimeException(e);
+        }
+
+        SymbolTable.Type valueType = visit(expr);
+        if (varType == SymbolTable.Type.FLOAT && valueType == SymbolTable.Type.INT) {
+            instructions.add(new Instruction(Instruction.OpCode.ITOF));
+        }
+
+        addSaveInstruction(varType, name);
+    }
 
     private void addSaveInstruction(SymbolTable.Type type, String name) {
         switch (type) {
