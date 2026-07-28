@@ -134,7 +134,9 @@ public class StackMachine {
     }
 
     private void load(String varName) {
-        check(variables.containsKey(varName), "Variable '" + varName + "' not defined");
+        // Every non-file declaration stores a default value, so in a checked
+        // program only a file variable that was never opened can end up here.
+        check(variables.containsKey(varName), "Variable '" + varName + "' was never assigned a value");
         stack.push(variables.get(varName));
     }
 

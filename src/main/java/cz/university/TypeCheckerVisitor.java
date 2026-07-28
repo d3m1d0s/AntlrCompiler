@@ -345,6 +345,17 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
     @Override
     public SymbolTable.Type visitFileOpenExpr(cz.university.LanguageParser.FileOpenExprContext ctx) {
+        String nameToken = ctx.STRING(0).getText();
+        if (nameToken.equals("\"\"")) {
+            typeError(ctx.STRING(0).getSymbol(), "File name in open() must not be empty.");
+        }
+
+        String modeToken = ctx.STRING(1).getText();
+        String mode = modeToken.substring(1, modeToken.length() - 1);
+        if (!mode.equals("w") && !mode.equals("a")) {
+            typeError(ctx.STRING(1).getSymbol(), "File open mode must be \"w\" or \"a\". Got: " + modeToken);
+        }
+
         return SymbolTable.Type.FILE;
     }
 

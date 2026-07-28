@@ -1173,12 +1173,51 @@ public class AppTest {
     @Test
     public void testEmptyFileNameFailsCleanly() {
         System.out.println("---- testEmptyFileNameFailsCleanly ----");
+        // A literal empty name in open() is a compile error; via the string
+        // form it is only known at run time and must fail as an open failure,
+        // not as a crash while parsing the push instruction.
         RuntimeException e = assertThrows(RuntimeException.class, () -> run("""
             file f;
-            f = open("", "w");
+            f = "";
             """));
         assertTrue("unexpected message: " + e.getMessage(),
                 e.getMessage().startsWith("Failed to open file:"));
+    }
+
+    @Test
+    public void testInvalidOpenModeIsReportedAsTypeError() {
+        System.out.println("---- testInvalidOpenModeIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("""
+        file f;
+        f = open("x.txt", "r");
+        """);
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("2,18: File open mode must be \"w\" or \"a\". Got: \"r\"", errors.get(0));
+    }
+
+    @Test
+    public void testEmptyFileNameInOpenIsReportedAsTypeError() {
+        System.out.println("---- testEmptyFileNameInOpenIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("""
+        file f;
+        f = open("", "w");
+        """);
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("2,9: File name in open() must not be empty.", errors.get(0));
+    }
+
+    @Test
+    public void testUnopenedFileVariableFailsWithClearMessage() {
+        System.out.println("---- testUnopenedFileVariableFailsWithClearMessage ----");
+        RuntimeException e = assertThrows(RuntimeException.class, () -> run("""
+            file f;
+            f << "data";
+            """));
+        assertEquals("Variable 'f' was never assigned a value", e.getMessage());
     }
 
     @Test
