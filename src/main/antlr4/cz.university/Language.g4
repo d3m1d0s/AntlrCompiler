@@ -57,7 +57,7 @@ FILE_T: 'file';
 BOOL: 'true' | 'false';
 INT: [0-9]+;
 FLOAT: [0-9]+ '.' [0-9]+;
-STRING: '"' (~["\\] | '\\' .)*? '"';
+STRING: '"' (~["\\\r\n] | '\\' ~[\r\n])* '"';
 IDENTIFIER: [a-zA-Z_] [a-zA-Z_0-9]*;
 
 // COMMENTS AND SKIPPED

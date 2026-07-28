@@ -1,5 +1,7 @@
 package cz.university.codegen;
 
+import cz.university.StringEscapes;
+
 public class Instruction {
 
     public enum OpCode {
@@ -65,6 +67,11 @@ public class Instruction {
 
             case FAPPEND_N:
                 return operand != null ? "fappend " + operand : "fappend";
+
+            // The operand holds the raw value; quote and escape it so the
+            // line based instruction format cannot be broken by its content.
+            case PUSH_S:
+                return "push S " + StringEscapes.encode(operand);
 
 
             case SAVE_I:

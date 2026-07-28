@@ -2,6 +2,8 @@ package cz.university.runtime;
 
 import cz.university.runtime.FileHandle;
 
+import cz.university.StringEscapes;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -117,7 +119,11 @@ public class StackMachine {
                 break;
             case "S":
                 if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
-                    value = value.substring(1, value.length() - 1);
+                    try {
+                        value = StringEscapes.decode(value);
+                    } catch (IllegalArgumentException e) {
+                        throw new MachineException("Malformed string operand: " + value);
+                    }
                 }
                 stack.push(value);
                 break;

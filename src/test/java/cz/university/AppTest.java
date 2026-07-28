@@ -1027,7 +1027,7 @@ public class AppTest {
         List<Instruction> instr = generate(input);
 
         List<String> expected = List.of(
-                "push S \"file_append_output.txt\"", "push S a", "fopen", "save f", "load f", "pop",
+                "push S \"file_append_output.txt\"", "push S \"a\"", "fopen", "save f", "load f", "pop",
                 "load f", "push S \"Hello, \"", "fappend 1", "pop",
                 "load f", "push S \"World!\"", "fappend 1", "pop",
                 "load f", "push I 1", "push S \"A\"", "push I 2", "fappend 3", "pop"
@@ -1053,13 +1053,13 @@ public class AppTest {
         List<String> expected = List.of(
 
                 // f = open("output.txt", "a")
-                "push S \"output.txt\"", "push S a", "fopen", "save f", "load f", "pop",
+                "push S \"output.txt\"", "push S \"a\"", "fopen", "save f", "load f", "pop",
 
                 // f << "Line 1" << 42
                 "load f", "push S \"Line 1\"", "push I 42", "fappend 2", "pop",
 
                 // f = open("output.txt", "w")
-                "push S \"output.txt\"", "push S w", "fopen", "save f", "load f", "pop",
+                "push S \"output.txt\"", "push S \"w\"", "fopen", "save f", "load f", "pop",
 
                 // f << "Overwrite"
                 "load f", "push S \"Overwrite\"", "fappend 1", "pop"
@@ -1408,7 +1408,7 @@ public class AppTest {
         List<Instruction> instr = generate(input);
 
         List<String> expected = List.of(
-                "push S \"target/file-tests/inline.txt\"", "push S w", "fopen", "print 1"
+                "push S \"target/file-tests/inline.txt\"", "push S \"w\"", "fopen", "print 1"
         );
 
         for (int i = 0; i < expected.size(); i++) {
@@ -1427,7 +1427,7 @@ public class AppTest {
         new StackMachine().execute(List.of(
                 "push S " + leftover.toString().replace('\\', '/'),
                 "push S " + opened.toString().replace('\\', '/'),
-                "push S w",
+                "push S \"w\"",
                 "fopen"));
 
         assertEquals(List.of("must survive"), Files.readAllLines(leftover));
@@ -1446,6 +1446,47 @@ public class AppTest {
             """.formatted(file.toString().replace('\\', '/')));
 
         assertEquals(List.of("existing", "added"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testEscapeSequencesAreDecoded() throws IOException {
+        Path src = sourceFile("cli-escapes.lang", "write \"a\\nb\\t\\\"q\\\"\\\\\";\n");
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals("a\nb\t\"q\"\\", r.stdout().trim());
+    }
+
+    @Test
+    public void testStringOperandSerializationStaysSingleLine() {
+        List<Instruction> instr = generate("write \"a\\nb\";\n");
+
+        assertEquals("push S \"a\\nb\"", instr.get(0).toString());
+    }
+
+    @Test
+    public void testEscapesReachProgramFiles() throws IOException {
+        Path file = scratchFile("escapes.txt");
+
+        run("""
+            file f;
+            f = open("%s", "w");
+            f << "x\\ny";
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertEquals(List.of("x", "y"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testUnknownEscapeIsReportedAsTypeError() {
+        List<String> errors = typeErrors("write \"a\\qb\";\n");
+
+        assertEquals(List.of("1,6: Unknown escape sequence '\\q' in string literal"), errors);
+    }
+
+    @Test
+    public void testRawLineBreakInStringIsSyntaxError() {
+        assertTrue(syntaxErrors("write \"a\nb\";\n") > 0);
     }
 
     @Test

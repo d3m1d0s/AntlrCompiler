@@ -1,5 +1,6 @@
 package cz.university.codegen;
 
+import cz.university.StringEscapes;
 import cz.university.SymbolTable;
 import cz.university.TypeException;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -59,7 +60,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
                     instructions.add(new Instruction(Instruction.OpCode.SAVE_B, name));
                 }
                 case STRING -> {
-                    instructions.add(new Instruction(Instruction.OpCode.PUSH_S, "\"\""));
+                    instructions.add(new Instruction(Instruction.OpCode.PUSH_S, ""));
                     instructions.add(new Instruction(Instruction.OpCode.SAVE_S, name));
                 }
                 case FILE -> {
@@ -112,7 +113,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
     @Override
     public SymbolTable.Type visitStringExpr(cz.university.LanguageParser.StringExprContext ctx) {
-        instructions.add(new Instruction(Instruction.OpCode.PUSH_S, ctx.getText()));
+        instructions.add(new Instruction(Instruction.OpCode.PUSH_S, StringEscapes.decode(ctx.getText())));
         return SymbolTable.Type.STRING;
     }
 
@@ -496,16 +497,13 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
     @Override
     public SymbolTable.Type visitFileOpenExpr(cz.university.LanguageParser.FileOpenExprContext ctx) {
-        String filename = ctx.STRING(0).getText();
-        String mode = ctx.STRING(1).getText();
+        String filename = StringEscapes.decode(ctx.STRING(0).getText());
+        String mode = StringEscapes.decode(ctx.STRING(1).getText());
 
-        mode = mode.substring(1, mode.length() - 1);
         if (!mode.equals("w") && !mode.equals("a")) {
             throw new RuntimeException("Invalid mode in open(): " + mode);
         }
 
-        // The file name keeps its quotes like any string literal, so names that
-        // are empty or contain spaces survive the text instruction encoding.
         instructions.add(new Instruction(Instruction.OpCode.PUSH_S, filename));
         instructions.add(new Instruction(Instruction.OpCode.PUSH_S, mode));
         instructions.add(new Instruction(Instruction.OpCode.FOPEN));

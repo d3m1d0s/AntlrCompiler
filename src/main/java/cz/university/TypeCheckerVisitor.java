@@ -102,6 +102,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
     @Override
     public SymbolTable.Type visitStringExpr(cz.university.LanguageParser.StringExprContext ctx) {
+        decodeLiteral(ctx.getStart());
         return SymbolTable.Type.STRING;
     }
 
@@ -352,18 +353,27 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
     @Override
     public SymbolTable.Type visitFileOpenExpr(cz.university.LanguageParser.FileOpenExprContext ctx) {
-        String nameToken = ctx.STRING(0).getText();
-        if (nameToken.equals("\"\"")) {
+        String name = decodeLiteral(ctx.STRING(0).getSymbol());
+        if (name != null && name.isEmpty()) {
             typeError(ctx.STRING(0).getSymbol(), "File name in open() must not be empty.");
         }
 
-        String modeToken = ctx.STRING(1).getText();
-        String mode = modeToken.substring(1, modeToken.length() - 1);
-        if (!mode.equals("w") && !mode.equals("a")) {
-            typeError(ctx.STRING(1).getSymbol(), "File open mode must be \"w\" or \"a\". Got: " + modeToken);
+        String mode = decodeLiteral(ctx.STRING(1).getSymbol());
+        if (mode != null && !mode.equals("w") && !mode.equals("a")) {
+            typeError(ctx.STRING(1).getSymbol(), "File open mode must be \"w\" or \"a\". Got: " + ctx.STRING(1).getText());
         }
 
         return SymbolTable.Type.FILE;
+    }
+
+    /** Decodes a string token, reporting bad escapes; returns null if the literal is malformed. */
+    private String decodeLiteral(Token token) {
+        try {
+            return StringEscapes.decode(token.getText());
+        } catch (IllegalArgumentException e) {
+            typeError(token, e.getMessage() + " in string literal");
+            return null;
+        }
     }
 
     // === Helpers ===
