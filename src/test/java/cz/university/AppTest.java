@@ -11,6 +11,8 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,18 +63,25 @@ public class AppTest {
         return file;
     }
 
+    /** Counts syntax errors the way App wires them up, swallowing the listener's printing. */
     private int syntaxErrors(String source) {
-        CharStream input = CharStreams.fromString(source);
-        cz.university.LanguageLexer lexer = new cz.university.LanguageLexer(input);
-        VerboseListener listener = new VerboseListener();
-        lexer.removeErrorListeners();
-        lexer.addErrorListener(listener);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        cz.university.LanguageParser parser = new cz.university.LanguageParser(tokens);
-        parser.removeErrorListeners();
-        parser.addErrorListener(listener);
-        parser.program();
-        return listener.getErrorCount();
+        PrintStream originalErr = System.err;
+        System.setErr(new PrintStream(OutputStream.nullOutputStream()));
+        try {
+            CharStream input = CharStreams.fromString(source);
+            cz.university.LanguageLexer lexer = new cz.university.LanguageLexer(input);
+            VerboseListener listener = new VerboseListener();
+            lexer.removeErrorListeners();
+            lexer.addErrorListener(listener);
+            CommonTokenStream tokens = new CommonTokenStream(lexer);
+            cz.university.LanguageParser parser = new cz.university.LanguageParser(tokens);
+            parser.removeErrorListeners();
+            parser.addErrorListener(listener);
+            parser.program();
+            return listener.getErrorCount();
+        } finally {
+            System.setErr(originalErr);
+        }
     }
 
     private List<String> typeErrors(String source) {
@@ -120,13 +129,11 @@ public class AppTest {
 
     @Test
     public void testIntDeclarationAndAssignmentCodeGen() {
-        System.out.println("---- testIntDeclarationAndAssignmentCodeGen ----");
         String input = """
             int a;
             a = 42;
             """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         assertEquals("push I 0", instr.get(0).toString());
         assertEquals("save a", instr.get(1).toString());
         assertEquals("push I 42", instr.get(2).toString());
@@ -135,13 +142,11 @@ public class AppTest {
 
     @Test
     public void testFloatPromotionAssignmentCodeGen() {
-        System.out.println("---- testFloatPromotionAssignmentCodeGen ----");
         String input = """
             float c;
             c = 10;
             """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         assertEquals("push F 0.0", instr.get(0).toString());
         assertEquals("save c", instr.get(1).toString());
         assertEquals("push I 10", instr.get(2).toString());
@@ -151,33 +156,28 @@ public class AppTest {
 
     @Test
     public void testStringDeclarationAndAssignment() {
-        System.out.println("---- testStringDeclarationAndAssignment ----");
         String input = """
             string msg;
             msg = "hello";
             """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         assertTrue(instr.stream().anyMatch(i -> i.toString().contains("push S \"hello\"")));
         assertTrue(instr.stream().anyMatch(i -> i.toString().contains("save msg")));
     }
 
     @Test
     public void testBoolAssignment() {
-        System.out.println("---- testBoolAssignment ----");
         String input = """
             bool m;
             m = true;
             """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         assertTrue(instr.stream().anyMatch(i -> i.toString().contains("push B true")));
         assertTrue(instr.stream().anyMatch(i -> i.toString().contains("save m")));
     }
 
     @Test
     public void testIdentifierLoad() {
-        System.out.println("---- testIdentifierLoad ----");
         String input = """
         int x;
         int y;
@@ -185,13 +185,11 @@ public class AppTest {
         y = x;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         assertTrue(instr.stream().anyMatch(i -> i.toString().equals("load x")));
     }
 
     @Test
     public void testAddInt() {
-        System.out.println("---- testAddInt ----");
         String input = """
         int a;
         int b;
@@ -202,7 +200,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -221,7 +218,6 @@ public class AppTest {
 
     @Test
     public void testSubFloatWithPromotion() {
-        System.out.println("---- testSubFloatWithPromotion ----");
         String input = """
         int a;
         float b;
@@ -232,7 +228,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -251,7 +246,6 @@ public class AppTest {
 
     @Test
     public void testConcatString() {
-        System.out.println("---- testConcatString ----");
         String input = """
         string s1;
         string s2;
@@ -262,7 +256,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push S \"\"", "save s1",
@@ -282,7 +275,6 @@ public class AppTest {
 
     @Test
     public void testMultiplyInt() {
-        System.out.println("---- testMultiplyInt ----");
         String input = """
         int a;
         int b;
@@ -293,7 +285,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -312,7 +303,6 @@ public class AppTest {
 
     @Test
     public void testModulo() {
-        System.out.println("---- testModulo ----");
         String input = """
         int a;
         int b;
@@ -323,7 +313,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -342,7 +331,6 @@ public class AppTest {
 
     @Test
     public void testEqualFloatPromotion() {
-        System.out.println("---- testEqualFloatPromotion ----");
         String input = """
         int a;
         float b;
@@ -353,7 +341,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -373,7 +360,6 @@ public class AppTest {
 
     @Test
     public void testEqualStrings() {
-        System.out.println("---- testEqualStrings ----");
         String input = """
         string a;
         string b;
@@ -384,7 +370,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push S \"\"", "save a",
@@ -404,7 +389,6 @@ public class AppTest {
 
     @Test
     public void testLessThanInt() {
-        System.out.println("---- testLessThanInt ----");
         String input = """
         int a;
         int b;
@@ -415,7 +399,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -435,7 +418,6 @@ public class AppTest {
 
     @Test
     public void testGreaterThanFloatWithPromotion() {
-        System.out.println("---- testGreaterThanFloatWithPromotion ----");
         String input = """
         int a;
         float b;
@@ -446,7 +428,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -466,7 +447,6 @@ public class AppTest {
 
     @Test
     public void testNotBool() {
-        System.out.println("---- testNotBool ----");
         String input = """
         bool a;
         bool result;
@@ -475,7 +455,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push B false", "save a",
@@ -493,7 +472,6 @@ public class AppTest {
 
     @Test
     public void testAndBool() {
-        System.out.println("---- testAndBool ----");
         String input = """
         bool a;
         bool b;
@@ -503,7 +481,6 @@ public class AppTest {
         result = a && b;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         List<String> expected = List.of(
                 "push B false", "save a",
                 "push B false", "save b",
@@ -521,7 +498,6 @@ public class AppTest {
 
     @Test
     public void testOrBool() {
-        System.out.println("---- testOrBool ----");
         String input = """
         bool a;
         bool b;
@@ -531,7 +507,6 @@ public class AppTest {
         result = a || b;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         List<String> expected = List.of(
                 "push B false", "save a",
                 "push B false", "save b",
@@ -549,7 +524,6 @@ public class AppTest {
 
     @Test
     public void testWriteStatement() {
-        System.out.println("---- testWriteStatement ----");
         String input = """
         int a;
         float b;
@@ -562,7 +536,6 @@ public class AppTest {
         write a, b, c, d;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         List<String> expected = List.of(
                 "push I 0", "save a",
                 "push F 0.0", "save b",
@@ -584,7 +557,6 @@ public class AppTest {
 
     @Test
     public void testReadStatement() {
-        System.out.println("---- testReadStatement ----");
         String input = """
         int a;
         float b;
@@ -593,7 +565,6 @@ public class AppTest {
         read a, b, c, d;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
         List<String> expected = List.of(
                 "push I 0", "save a",
                 "push F 0.0", "save b",
@@ -612,7 +583,6 @@ public class AppTest {
 
     @Test
     public void testIfStatement() {
-        System.out.println("---- testIfStatement ----");
         String input = """
         bool cond;
         int a;
@@ -622,7 +592,6 @@ public class AppTest {
         }
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push B false", "save cond",
@@ -642,7 +611,6 @@ public class AppTest {
 
     @Test
     public void testWhileStatement() {
-        System.out.println("---- testWhileStatement ----");
         String input = """
         int a;
         a = 0;
@@ -651,7 +619,6 @@ public class AppTest {
         }
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -671,7 +638,6 @@ public class AppTest {
 
     @Test
     public void testForStatement() {
-        System.out.println("---- testForStatement ----");
         String input = """
         int a;
         a = 0;
@@ -680,7 +646,6 @@ public class AppTest {
         }
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -704,12 +669,10 @@ public class AppTest {
 
     @Test
     public void testUnaryMinusAsBinaryOperand() {
-        System.out.println("---- testUnaryMinusAsBinaryOperand ----");
         String input = """
         write 2 * -3;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 2", "push I 3", "uminus I", "mul I", "print 1"
@@ -722,12 +685,10 @@ public class AppTest {
 
     @Test
     public void testUnaryMinusOperandWithFloatPromotion() {
-        System.out.println("---- testUnaryMinusOperandWithFloatPromotion ----");
         String input = """
         write 1.5 + -1;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push F 1.5", "push I 1", "uminus I", "itof", "add F", "print 1"
@@ -740,13 +701,11 @@ public class AppTest {
 
     @Test
     public void testUnaryMinusInAssignment() {
-        System.out.println("---- testUnaryMinusInAssignment ----");
         String input = """
         int a;
         a = 1 + -1;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -760,12 +719,10 @@ public class AppTest {
 
     @Test
     public void testUnaryMinusBindsTighterThanAddition() {
-        System.out.println("---- testUnaryMinusBindsTighterThanAddition ----");
         String input = """
         write -2 + 3;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 2", "uminus I", "push I 3", "add I", "print 1"
@@ -778,12 +735,10 @@ public class AppTest {
 
     @Test
     public void testUnaryMinusBindsTighterThanComparison() {
-        System.out.println("---- testUnaryMinusBindsTighterThanComparison ----");
         String input = """
         write -2 < 1;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 2", "uminus I", "push I 1", "lt I", "print 1"
@@ -796,13 +751,11 @@ public class AppTest {
 
     @Test
     public void testNotBindsTighterThanAnd() {
-        System.out.println("---- testNotBindsTighterThanAnd ----");
         String input = """
         bool r;
         r = !false && false;
         """;
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push B false", "save r",
@@ -816,9 +769,7 @@ public class AppTest {
 
     @Test
     public void testNotOnNonBoolIsReportedAsTypeError() {
-        System.out.println("---- testNotOnNonBoolIsReportedAsTypeError ----");
         List<String> errors = typeErrors("write !5;\n");
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("1,6: Logical '!' requires bool operand. Got: INT", errors.get(0));
@@ -826,9 +777,7 @@ public class AppTest {
 
     @Test
     public void testUnaryMinusOnStringIsReportedAsTypeError() {
-        System.out.println("---- testUnaryMinusOnStringIsReportedAsTypeError ----");
         List<String> errors = typeErrors("write -\"abc\";\n");
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("1,6: Unary minus requires int or float. Got: STRING", errors.get(0));
@@ -836,12 +785,10 @@ public class AppTest {
 
     @Test
     public void testReadIntoFileVariableIsReportedAsTypeError() {
-        System.out.println("---- testReadIntoFileVariableIsReportedAsTypeError ----");
         List<String> errors = typeErrors("""
         file f;
         read f;
         """);
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("2,5: Variable 'f' has unsupported type for read: FILE", errors.get(0));
@@ -849,14 +796,12 @@ public class AppTest {
 
     @Test
     public void testChainAssignment() {
-        System.out.println("---- testChainAssignment ----");
         String input = """
         int i, j, k;
         i = j = k = 55;
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save i",
@@ -874,9 +819,7 @@ public class AppTest {
 
     @Test
     public void testUndeclaredVariableInForInitIsReportedAsTypeError() {
-        System.out.println("---- testUndeclaredVariableInForInitIsReportedAsTypeError ----");
         List<String> errors = typeErrors("for (q = 0; true; ) ;\n");
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("1,5: Variable 'q' is not declared.", errors.get(0));
@@ -884,12 +827,10 @@ public class AppTest {
 
     @Test
     public void testUndeclaredVariableInForUpdateIsReportedAsTypeError() {
-        System.out.println("---- testUndeclaredVariableInForUpdateIsReportedAsTypeError ----");
         List<String> errors = typeErrors("""
         int i;
         for (i = 0; true; q = 1) ;
         """);
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("2,18: Variable 'q' is not declared.", errors.get(0));
@@ -897,12 +838,10 @@ public class AppTest {
 
     @Test
     public void testIncompatibleTypeInForInitIsReportedAsTypeError() {
-        System.out.println("---- testIncompatibleTypeInForInitIsReportedAsTypeError ----");
         List<String> errors = typeErrors("""
         int i;
         for (i = "text"; true; ) ;
         """);
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("2,5: Incompatible types in for-init: INT and STRING", errors.get(0));
@@ -910,14 +849,12 @@ public class AppTest {
 
     @Test
     public void testForInitPromotesIntToFloat() {
-        System.out.println("---- testForInitPromotesIntToFloat ----");
         String input = """
         float f;
         for (f = 0; f < 2.0; f = f + 1) write f;
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push F 0.0", "save f",
@@ -937,14 +874,12 @@ public class AppTest {
 
     @Test
     public void testForUpdatePromotesIntToFloat() {
-        System.out.println("---- testForUpdatePromotesIntToFloat ----");
         String input = """
         float f;
         for (f = 0.0; f < 1.0; f = 2) write f;
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push F 0.0", "save f",
@@ -964,14 +899,12 @@ public class AppTest {
 
     @Test
     public void testAssignmentInsideExpressionStoresAndYieldsValue() {
-        System.out.println("---- testAssignmentInsideExpressionStoresAndYieldsValue ----");
         String input = """
         int a, b;
         b = (a = 5) + 1;
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -988,14 +921,12 @@ public class AppTest {
 
     @Test
     public void testAssignmentInsideWriteKeepsValueOnStack() {
-        System.out.println("---- testAssignmentInsideWriteKeepsValueOnStack ----");
         String input = """
         int a;
         write (a = 5);
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save a",
@@ -1009,14 +940,12 @@ public class AppTest {
 
     @Test
     public void testChainedAssignmentInForInit() {
-        System.out.println("---- testChainedAssignmentInForInit ----");
         String input = """
         int i, j;
         for (i = j = 0; i < 2; i = i + 1) write i;
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push I 0", "save i",
@@ -1037,7 +966,6 @@ public class AppTest {
 
     @Test
     public void testChainedAssignmentPromotesPerVariable() {
-        System.out.println("---- testChainedAssignmentPromotesPerVariable ----");
         String input = """
         float f;
         int i;
@@ -1045,7 +973,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push F 0.0", "save f",
@@ -1060,7 +987,6 @@ public class AppTest {
 
     @Test
     public void testFileAppendExpr() {
-        System.out.println("---- testFileAppendExpr ----");
         String input = """
         file f;
         f = "file_append_output.txt";
@@ -1070,7 +996,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push S \"file_append_output.txt\"", "push S a", "fopen", "save f", "load f", "pop",
@@ -1086,7 +1011,6 @@ public class AppTest {
 
     @Test
     public void testFileOpenAndAppend() {
-        System.out.println("---- testFileOpenAndAppend ----");
         String input = """
         file f;
         f = open("output.txt", "a");
@@ -1096,7 +1020,6 @@ public class AppTest {
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
 
@@ -1121,7 +1044,6 @@ public class AppTest {
 
     @Test
     public void testReadIntToleratesSurroundingWhitespace() throws IOException {
-        System.out.println("---- testReadIntToleratesSurroundingWhitespace ----");
         Path file = scratchFile("read-int.txt");
 
         runWithInput("""
@@ -1137,7 +1059,6 @@ public class AppTest {
 
     @Test
     public void testReadInvalidIntReportsTypeAndInput() {
-        System.out.println("---- testReadInvalidIntReportsTypeAndInput ----");
         MachineException e = assertThrows(MachineException.class,
                 () -> runWithInput("int a;\nread a;\n", "abc\n"));
         assertEquals("Invalid int input: \"abc\"", e.getMessage());
@@ -1145,7 +1066,6 @@ public class AppTest {
 
     @Test
     public void testReadInvalidFloatReportsTypeAndInput() {
-        System.out.println("---- testReadInvalidFloatReportsTypeAndInput ----");
         MachineException e = assertThrows(MachineException.class,
                 () -> runWithInput("float x;\nread x;\n", "3,14\n"));
         assertEquals("Invalid float input: \"3,14\"", e.getMessage());
@@ -1153,7 +1073,6 @@ public class AppTest {
 
     @Test
     public void testReadOnExhaustedInputReportsEndOfInput() {
-        System.out.println("---- testReadOnExhaustedInputReportsEndOfInput ----");
         MachineException e = assertThrows(MachineException.class,
                 () -> runWithInput("int a;\nread a;\n", ""));
         assertEquals("Input ended while reading int", e.getMessage());
@@ -1161,7 +1080,6 @@ public class AppTest {
 
     @Test
     public void testReadBoolIsStrict() throws IOException {
-        System.out.println("---- testReadBoolIsStrict ----");
         MachineException e = assertThrows(MachineException.class,
                 () -> runWithInput("bool b;\nread b;\n", "yes\n"));
         assertEquals("Invalid bool input: \"yes\"", e.getMessage());
@@ -1180,21 +1098,18 @@ public class AppTest {
 
     @Test
     public void testIntDivisionByZeroRaisesMachineError() {
-        System.out.println("---- testIntDivisionByZeroRaisesMachineError ----");
         MachineException e = assertThrows(MachineException.class, () -> run("write 1 / 0;\n"));
         assertEquals("Division by zero", e.getMessage());
     }
 
     @Test
     public void testModuloByZeroRaisesMachineError() {
-        System.out.println("---- testModuloByZeroRaisesMachineError ----");
         MachineException e = assertThrows(MachineException.class, () -> run("write 5 % 0;\n"));
         assertEquals("Division by zero", e.getMessage());
     }
 
     @Test
     public void testWriteModeTruncatesAtOpenOnly() throws IOException {
-        System.out.println("---- testWriteModeTruncatesAtOpenOnly ----");
         Path file = scratchFile("write-mode.txt");
         Files.writeString(file, "stale content\n");
 
@@ -1210,7 +1125,6 @@ public class AppTest {
 
     @Test
     public void testAppendModeKeepsExistingContent() throws IOException {
-        System.out.println("---- testAppendModeKeepsExistingContent ----");
         Path file = scratchFile("append-mode.txt");
         Files.writeString(file, "existing\n");
 
@@ -1225,7 +1139,6 @@ public class AppTest {
 
     @Test
     public void testOpeningAnotherFileLeavesTheFirstUntouched() throws IOException {
-        System.out.println("---- testOpeningAnotherFileLeavesTheFirstUntouched ----");
         Path first = scratchFile("first.txt");
         Path second = scratchFile("second.txt");
 
@@ -1244,7 +1157,6 @@ public class AppTest {
 
     @Test
     public void testOpenCreatesTheFile() throws IOException {
-        System.out.println("---- testOpenCreatesTheFile ----");
         Path file = scratchFile("created.txt");
 
         run("""
@@ -1258,7 +1170,6 @@ public class AppTest {
 
     @Test
     public void testFileNameWithSpacesSurvivesInstructionEncoding() throws IOException {
-        System.out.println("---- testFileNameWithSpacesSurvivesInstructionEncoding ----");
         Path file = scratchFile("with space.txt");
 
         run("""
@@ -1272,7 +1183,6 @@ public class AppTest {
 
     @Test
     public void testEmptyFileNameFailsCleanly() {
-        System.out.println("---- testEmptyFileNameFailsCleanly ----");
         // A literal empty name in open() is a compile error; via the string
         // form it is only known at run time and must fail as an open failure,
         // not as a crash while parsing the push instruction.
@@ -1287,7 +1197,6 @@ public class AppTest {
 
     @Test
     public void testSyntaxErrorIsCountedAndDoesNotKillTheProcess() {
-        System.out.println("---- testSyntaxErrorIsCountedAndDoesNotKillTheProcess ----");
         // The listener used to call System.exit on the first error; getting a
         // count back at all proves reporting no longer terminates the JVM.
         assertTrue(syntaxErrors("int a\n") > 0);
@@ -1296,7 +1205,6 @@ public class AppTest {
 
     @Test
     public void testLexerErrorsAreCounted() {
-        System.out.println("---- testLexerErrorsAreCounted ----");
         // Characters the lexer cannot tokenize must count as syntax errors;
         // they used to slip through and the program compiled and ran anyway.
         assertEquals(2, syntaxErrors("@ $\n"));
@@ -1304,19 +1212,16 @@ public class AppTest {
 
     @Test
     public void testMultipleSyntaxErrorsAreReported() {
-        System.out.println("---- testMultipleSyntaxErrorsAreReported ----");
         assertTrue(syntaxErrors("int a\nint b\n") >= 2);
     }
 
     @Test
     public void testUndeclaredVariableErrorsCarryPositions() {
-        System.out.println("---- testUndeclaredVariableErrorsCarryPositions ----");
         List<String> errors = typeErrors("""
         x = 5;
         write y;
         int x, x;
         """);
-        errors.forEach(System.out::println);
 
         assertEquals(List.of(
                 "1,0: Variable 'x' is not declared.",
@@ -1326,10 +1231,48 @@ public class AppTest {
     }
 
     @Test
+    public void testOneErrorPerMistakeInAssignment() {
+        List<String> errors = typeErrors("int a;\na = \"s\" + 1;\n");
+
+        assertEquals(List.of(
+                "2,8: Invalid operands for arithmetic operation: STRING, INT"
+        ), errors);
+    }
+
+    @Test
+    public void testErroredOperandDoesNotCascadeIntoNot() {
+        List<String> errors = typeErrors("bool b;\nb = !x;\n");
+
+        assertEquals(List.of("2,5: Variable 'x' is not declared."), errors);
+    }
+
+    @Test
+    public void testErroredOperandsDoNotCascadeIntoLogicalOperator() {
+        List<String> errors = typeErrors("bool b;\nb = x && y;\n");
+
+        assertEquals(List.of(
+                "2,4: Variable 'x' is not declared.",
+                "2,9: Variable 'y' is not declared."
+        ), errors);
+    }
+
+    @Test
+    public void testUndeclaredVariableReportedOncePerName() {
+        List<String> errors = typeErrors("for (q = 0; q < 3; q = q + 1) ;\n");
+
+        assertEquals(List.of("1,5: Variable 'q' is not declared."), errors);
+    }
+
+    @Test
+    public void testNonBoolForConditionStillReported() {
+        List<String> errors = typeErrors("int i;\nfor (i = 0; i + 1; i = i + 1) ;\n");
+
+        assertEquals(List.of("2,12: Condition in for loop must be bool, got INT"), errors);
+    }
+
+    @Test
     public void testIntLiteralOutOfRangeIsReportedAsTypeError() {
-        System.out.println("---- testIntLiteralOutOfRangeIsReportedAsTypeError ----");
         List<String> errors = typeErrors("write 2147483648;\n");
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("1,6: Integer literal out of range: 2147483648", errors.get(0));
@@ -1337,20 +1280,16 @@ public class AppTest {
 
     @Test
     public void testIntLiteralAtRangeBoundaryCompiles() {
-        System.out.println("---- testIntLiteralAtRangeBoundaryCompiles ----");
         List<Instruction> instr = generate("write 2147483647;\n");
-        instr.forEach(System.out::println);
 
         assertEquals("push I 2147483647", instr.get(0).toString());
     }
 
     @Test
     public void testMostNegativeIntLiteralIsRejected() {
-        System.out.println("---- testMostNegativeIntLiteralIsRejected ----");
         // "-2147483648" is unary minus applied to the literal 2147483648, which
         // itself does not fit in an int, exactly as in C and Java source.
         List<String> errors = typeErrors("write -2147483648;\n");
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("1,7: Integer literal out of range: 2147483648", errors.get(0));
@@ -1358,12 +1297,10 @@ public class AppTest {
 
     @Test
     public void testInvalidOpenModeIsReportedAsTypeError() {
-        System.out.println("---- testInvalidOpenModeIsReportedAsTypeError ----");
         List<String> errors = typeErrors("""
         file f;
         f = open("x.txt", "r");
         """);
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("2,18: File open mode must be \"w\" or \"a\". Got: \"r\"", errors.get(0));
@@ -1371,12 +1308,10 @@ public class AppTest {
 
     @Test
     public void testEmptyFileNameInOpenIsReportedAsTypeError() {
-        System.out.println("---- testEmptyFileNameInOpenIsReportedAsTypeError ----");
         List<String> errors = typeErrors("""
         file f;
         f = open("", "w");
         """);
-        errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
         assertEquals("2,9: File name in open() must not be empty.", errors.get(0));
@@ -1384,7 +1319,6 @@ public class AppTest {
 
     @Test
     public void testUnopenedFileVariableFailsWithClearMessage() {
-        System.out.println("---- testUnopenedFileVariableFailsWithClearMessage ----");
         MachineException e = assertThrows(MachineException.class, () -> run("""
             file f;
             f << "data";
@@ -1394,7 +1328,6 @@ public class AppTest {
 
     @Test
     public void testFileToFileAssignment() throws IOException {
-        System.out.println("---- testFileToFileAssignment ----");
         Path file = scratchFile("shared.txt");
 
         run("""
@@ -1411,7 +1344,6 @@ public class AppTest {
 
     @Test
     public void testChainedFileAssignment() throws IOException {
-        System.out.println("---- testChainedFileAssignment ----");
         Path file = scratchFile("chained.txt");
 
         run("""
@@ -1427,7 +1359,6 @@ public class AppTest {
 
     @Test
     public void testParenthesizedAppendChain() throws IOException {
-        System.out.println("---- testParenthesizedAppendChain ----");
         Path file = scratchFile("paren-chain.txt");
 
         run("""
@@ -1441,13 +1372,11 @@ public class AppTest {
 
     @Test
     public void testOpenOutsideAssignmentYieldsHandle() {
-        System.out.println("---- testOpenOutsideAssignmentYieldsHandle ----");
         String input = """
         write open("target/file-tests/inline.txt", "w");
         """;
 
         List<Instruction> instr = generate(input);
-        instr.forEach(System.out::println);
 
         List<String> expected = List.of(
                 "push S \"target/file-tests/inline.txt\"", "push S w", "fopen", "print 1"
@@ -1460,7 +1389,6 @@ public class AppTest {
 
     @Test
     public void testFopenReadsExactlyTwoOperands() throws IOException {
-        System.out.println("---- testFopenReadsExactlyTwoOperands ----");
         Path leftover = scratchFile("leftover.txt");
         Files.writeString(leftover, "must survive\n");
         Path opened = scratchFile("opened.txt");
@@ -1479,7 +1407,6 @@ public class AppTest {
 
     @Test
     public void testFileNameAssignmentAppends() throws IOException {
-        System.out.println("---- testFileNameAssignmentAppends ----");
         Path file = scratchFile("named.txt");
         Files.writeString(file, "existing\n");
 
@@ -1494,10 +1421,8 @@ public class AppTest {
 
     @Test
     public void testAllInputsAgainstReferenceOutputs() throws IOException {
-        System.out.println("---- testAllInputsAgainstReferenceOutputs ----");
 
         for (int testNum = 1; testNum <= 3; testNum++) {
-            System.out.println("Running test PLC_t" + testNum);
 
             Path inputPath = Path.of("src/test/resources/PLC_t" + testNum + ".in");
             Path expectedOutputPath = Path.of("src/test/resources/PLC_t" + testNum + ".out");
@@ -1515,9 +1440,7 @@ public class AppTest {
             List<String> actual = Files.readAllLines(outPath);
             List<String> expected = Files.readAllLines(expectedOutputPath);
 
-            if (actual.equals(expected)) {
-                System.out.println("Output for PLC_t" + testNum + " matches expected output.");
-            } else {
+            if (!actual.equals(expected)) {
                 System.err.println("Mismatch for PLC_t" + testNum);
                 System.err.println("------ DIFF ------");
 
