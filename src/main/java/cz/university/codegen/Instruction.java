@@ -29,7 +29,6 @@ public class Instruction {
         PRINT,
         READ_I, READ_F, READ_S, READ_B,
         FOPEN,
-        FWRITE,
         FAPPEND_N,
     }
 
@@ -66,9 +65,6 @@ public class Instruction {
 
             case FAPPEND_N:
                 return operand != null ? "fappend " + operand : "fappend";
-
-            case FWRITE:
-                return operand != null ? "fwrite " + operand : "fwrite";
 
 
             case SAVE_I:

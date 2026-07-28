@@ -16,7 +16,6 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
     private final SymbolTable symbolTable;
     private final List<Instruction> instructions = new ArrayList<>();
-    private boolean writeInstruction = false;
     private int labelCounter = 0;
 
 
@@ -493,11 +492,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
             visit(arg);
         }
 
-        if (!writeInstruction) {
-            instructions.add(new Instruction(Instruction.OpCode.FAPPEND_N, String.valueOf(exprs.size())));
-        } else {
-            instructions.add(new Instruction(Instruction.OpCode.FWRITE, String.valueOf(exprs.size())));
-        }
+        instructions.add(new Instruction(Instruction.OpCode.FAPPEND_N, String.valueOf(exprs.size())));
         return SymbolTable.Type.FILE;
     }
 
@@ -509,16 +504,12 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         filename = filename.substring(1, filename.length() - 1);
         mode = mode.substring(1, mode.length() - 1);
 
-        instructions.add(new Instruction(Instruction.OpCode.PUSH_S, filename));
-        instructions.add(new Instruction(Instruction.OpCode.PUSH_S, mode));
-        if (mode.equals("w")) {
-            writeInstruction = true;
-        } else if (mode.equals("a")) {
-            writeInstruction = false;
-        } else {
+        if (!mode.equals("w") && !mode.equals("a")) {
             throw new RuntimeException("Invalid mode in open(): " + mode);
         }
-        //instructions.add(new Instruction(Instruction.OpCode.FOPEN));
+
+        instructions.add(new Instruction(Instruction.OpCode.PUSH_S, filename));
+        instructions.add(new Instruction(Instruction.OpCode.PUSH_S, mode));
 
         return SymbolTable.Type.FILE;
     }

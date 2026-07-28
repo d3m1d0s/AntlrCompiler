@@ -2,6 +2,7 @@ package cz.university;
 
 import cz.university.codegen.CodeGeneratorVisitor;
 import cz.university.codegen.Instruction;
+import cz.university.runtime.StackMachine;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 import org.junit.Test;
@@ -31,6 +32,20 @@ public class AppTest {
         generator.visit(tree);
         List<Instruction> list = generator.getInstructions();
         return list;
+    }
+
+    private void run(String source) {
+        List<String> program = generate(source).stream().map(Instruction::toString).toList();
+        new StackMachine().execute(program);
+    }
+
+    /** Returns a fresh path under target/, usable inside a program as a string literal. */
+    private Path scratchFile(String name) throws IOException {
+        Path dir = Path.of("target", "file-tests");
+        Files.createDirectories(dir);
+        Path file = dir.resolve(name);
+        Files.deleteIfExists(file);
+        return file;
     }
 
     private List<String> typeErrors(String source) {
@@ -1068,7 +1083,7 @@ public class AppTest {
                 "push S output.txt", "push S w", "fopen", "save f",
 
                 // f << "Overwrite"
-                "load f", "push S \"Overwrite\"", "fwrite 1"
+                "load f", "push S \"Overwrite\"", "fappend 1"
         );
 
         for (int i = 0; i < expected.size(); i++) {
@@ -1076,6 +1091,70 @@ public class AppTest {
         }
     }
 
+
+    @Test
+    public void testWriteModeTruncatesAtOpenOnly() throws IOException {
+        System.out.println("---- testWriteModeTruncatesAtOpenOnly ----");
+        Path file = scratchFile("write-mode.txt");
+        Files.writeString(file, "stale content\n");
+
+        run("""
+            file f;
+            f = open("%s", "w");
+            f << "first";
+            f << "second";
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertEquals(List.of("first", "second"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testAppendModeKeepsExistingContent() throws IOException {
+        System.out.println("---- testAppendModeKeepsExistingContent ----");
+        Path file = scratchFile("append-mode.txt");
+        Files.writeString(file, "existing\n");
+
+        run("""
+            file f;
+            f = open("%s", "a");
+            f << "added";
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertEquals(List.of("existing", "added"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testOpeningAnotherFileLeavesTheFirstUntouched() throws IOException {
+        System.out.println("---- testOpeningAnotherFileLeavesTheFirstUntouched ----");
+        Path first = scratchFile("first.txt");
+        Path second = scratchFile("second.txt");
+
+        run("""
+            file f;
+            file g;
+            f = open("%s", "a");
+            f << "keep";
+            g = open("%s", "w");
+            f << "also keep";
+            """.formatted(first.toString().replace('\\', '/'),
+                          second.toString().replace('\\', '/')));
+
+        assertEquals(List.of("keep", "also keep"), Files.readAllLines(first));
+    }
+
+    @Test
+    public void testOpenCreatesTheFile() throws IOException {
+        System.out.println("---- testOpenCreatesTheFile ----");
+        Path file = scratchFile("created.txt");
+
+        run("""
+            file f;
+            f = open("%s", "w");
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertTrue(Files.exists(file));
+        assertEquals(List.of(), Files.readAllLines(file));
+    }
 
     @Test
     public void testAllInputsAgainstReferenceOutputs() throws IOException {

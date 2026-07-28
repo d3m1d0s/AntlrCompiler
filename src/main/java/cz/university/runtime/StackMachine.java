@@ -88,9 +88,6 @@ public class StackMachine {
                 case "fappend":
                     fappendN(Integer.parseInt(parts[1]));
                     break;
-                case "fwrite":
-                    fwrite(Integer.parseInt(parts[1]));
-                    break;
                 default:
                     throw new RuntimeException("Unknown instruction: " + command);
             }
@@ -353,18 +350,42 @@ public class StackMachine {
         check(!stack.isEmpty(), "Stack underflow on FOPEN");
 
         Object top = stack.pop();
+        String filename;
+        String mode;
 
         if (stack.isEmpty()) {
             check(top instanceof String, "FOPEN expects string filename");
-            stack.push(new FileHandle((String) top, "a"));
+            filename = (String) top;
+            mode = "a";
         } else {
-            Object filename = stack.pop();
-            Object mode = top;
+            Object name = stack.pop();
 
-            check(filename instanceof String, "FOPEN expects string filename");
-            check(mode instanceof String, "FOPEN expects string mode");
+            check(name instanceof String, "FOPEN expects string filename");
+            check(top instanceof String, "FOPEN expects string mode");
 
-            stack.push(new FileHandle((String) filename, (String) mode));
+            filename = (String) name;
+            mode = (String) top;
+        }
+
+        applyMode(filename, mode);
+        stack.push(new FileHandle(filename));
+    }
+
+    // The mode takes effect once, when the file is opened: "w" starts an empty
+    // file, "a" keeps what is already there. Every later append writes to the
+    // end regardless of the mode.
+    private void applyMode(String filename, String mode) {
+        boolean keepContent;
+        switch (mode) {
+            case "w" -> keepContent = false;
+            case "a" -> keepContent = true;
+            default -> throw new RuntimeException("Unknown file mode: " + mode);
+        }
+
+        try (FileWriter fw = new FileWriter(filename, keepContent)) {
+            // Opening the file creates it when missing and truncates it in "w".
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to open file: " + filename);
         }
     }
 
@@ -392,32 +413,5 @@ public class StackMachine {
             throw new RuntimeException("Failed to append to file: " + fileHandle.getName());
         }
     }
-
-    private void fwrite(int n) {
-        check(stack.size() >= n + 1, "Stack underflow on FWRITE");
-
-        List<Object> values = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            values.add(stack.pop());
-        }
-        Collections.reverse(values);
-
-        Object handle = stack.pop();
-        check(handle instanceof FileHandle, "FWRITE expects a FileHandle");
-
-        FileHandle fileHandle = (FileHandle) handle;
-
-        try (FileWriter fw = new FileWriter(fileHandle.getName(), false);
-             PrintWriter writer = new PrintWriter(fw)) {
-            for (Object val : values) {
-                writer.print(val);
-            }
-            writer.println();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to write to file: " + fileHandle.getName());
-        }
-    }
-
-
 
 }
