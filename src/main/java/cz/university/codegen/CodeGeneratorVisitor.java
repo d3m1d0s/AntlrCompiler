@@ -16,7 +16,6 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
     private final SymbolTable symbolTable;
     private final List<Instruction> instructions = new ArrayList<>();
-    private boolean insideExpressionStatement = false;
     private boolean writeInstruction = false;
     private int labelCounter = 0;
 
@@ -74,60 +73,12 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
     @Override
     public SymbolTable.Type visitExpressionStatement(cz.university.LanguageParser.ExpressionStatementContext ctx) {
-        insideExpressionStatement = true;
-        SymbolTable.Type type = null;
+        SymbolTable.Type type = visit(ctx.expr());
 
-        if (ctx.expr() instanceof cz.university.LanguageParser.AssignExprContext assign) {
-            List<String> vars = new ArrayList<>();
-            cz.university.LanguageParser.ExprContext current = assign;
-            while (current instanceof cz.university.LanguageParser.AssignExprContext a) {
-                vars.add(a.left.getText());
-                current = a.right;
-            }
-
-            type = visit(current);
-
-            for (int i = vars.size() - 1; i >= 0; i--) {
-                String var = vars.get(i);
-                SymbolTable.Type varType;
-                try {
-                    varType = symbolTable.getType(var, ctx.getStart().getLine());
-                } catch (TypeException e) {
-                    throw new RuntimeException(e);
-                }
-
-                if (i != vars.size() - 1) {
-                    instructions.add(new Instruction(Instruction.OpCode.LOAD, vars.get(i + 1)));
-                    //instructions.add(new Instruction(Instruction.OpCode.POP));
-                }
-
-                if (varType == SymbolTable.Type.FLOAT && type == SymbolTable.Type.INT) {
-                    instructions.add(new Instruction(Instruction.OpCode.ITOF));
-                }
-
-                addSaveInstruction(varType, var);
-            }
-
-            SymbolTable.Type firstVarType = null;
-            try {
-                firstVarType = symbolTable.getType(vars.get(0), ctx.getStart().getLine());
-            } catch (TypeException e) {
-                throw new RuntimeException(e);
-            }
-            if (firstVarType != SymbolTable.Type.FILE) {
-                instructions.add(new Instruction(Instruction.OpCode.LOAD, vars.get(0)));
-                instructions.add(new Instruction(Instruction.OpCode.POP));
-            }
-
-        } else {
-            type = visit(ctx.expr());
-
-            if (type != SymbolTable.Type.FILE) {
-                instructions.add(new Instruction(Instruction.OpCode.POP));
-            }
+        if (type != SymbolTable.Type.FILE) {
+            instructions.add(new Instruction(Instruction.OpCode.POP));
         }
 
-        insideExpressionStatement = false;
         return type;
     }
 
@@ -524,14 +475,13 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        if (varType == SymbolTable.Type.FILE) {
-            //instructions.add(new Instruction(Instruction.OpCode.FOPEN));
-            instructions.add(new Instruction(Instruction.OpCode.SAVE_FILE, varName));
-            return varType;
-        }
+        addSaveInstruction(varType, varName);
 
-        if (!insideExpressionStatement) {
-            addSaveInstruction(varType, varName);
+        // An assignment is an expression, so its value has to stay on the stack
+        // for the surrounding expression. The stack machine has no dup, hence
+        // the reload. Statement level discards it again with a pop.
+        if (varType != SymbolTable.Type.FILE) {
+            instructions.add(new Instruction(Instruction.OpCode.LOAD, varName));
         }
 
         return varType;

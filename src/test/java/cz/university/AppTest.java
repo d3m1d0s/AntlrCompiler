@@ -831,6 +831,102 @@ public class AppTest {
     }
 
     @Test
+    public void testAssignmentInsideExpressionStoresAndYieldsValue() {
+        System.out.println("---- testAssignmentInsideExpressionStoresAndYieldsValue ----");
+        String input = """
+        int a, b;
+        b = (a = 5) + 1;
+        """;
+
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push I 0", "save a",
+                "push I 0", "save b",
+                "push I 5", "save a", "load a",
+                "push I 1", "add I",
+                "save b", "load b", "pop"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testAssignmentInsideWriteKeepsValueOnStack() {
+        System.out.println("---- testAssignmentInsideWriteKeepsValueOnStack ----");
+        String input = """
+        int a;
+        write (a = 5);
+        """;
+
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push I 0", "save a",
+                "push I 5", "save a", "load a", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testChainedAssignmentInForInit() {
+        System.out.println("---- testChainedAssignmentInForInit ----");
+        String input = """
+        int i, j;
+        for (i = j = 0; i < 2; i = i + 1) write i;
+        """;
+
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push I 0", "save i",
+                "push I 0", "save j",
+                "push I 0", "save j", "load j", "save i",
+                "label 0",
+                "load i", "push I 2", "lt I", "fjmp 1",
+                "load i", "print 1",
+                "load i", "push I 1", "add I", "save i",
+                "jmp 0",
+                "label 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testChainedAssignmentPromotesPerVariable() {
+        System.out.println("---- testChainedAssignmentPromotesPerVariable ----");
+        String input = """
+        float f;
+        int i;
+        f = i = 5;
+        """;
+
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push F 0.0", "save f",
+                "push I 0", "save i",
+                "push I 5", "save i", "load i", "itof", "save f", "load f", "pop"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
     public void testFileAppendExpr() {
         System.out.println("---- testFileAppendExpr ----");
         String input = """
