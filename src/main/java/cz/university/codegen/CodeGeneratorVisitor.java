@@ -8,6 +8,7 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -556,13 +557,11 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
 
-    public void saveToFile(String filename) {
-        try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
+    public void saveToFile(String filename) throws IOException {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename, StandardCharsets.UTF_8))) {
             for (Instruction instr : instructions) {
                 writer.println(instr);
             }
-        } catch (IOException e) {
-            System.err.println("Failed to write output file: " + e.getMessage());
         }
     }
 }

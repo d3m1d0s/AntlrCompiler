@@ -9,6 +9,7 @@ import org.antlr.v4.runtime.tree.*;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -52,6 +53,34 @@ public class AppTest {
         } finally {
             System.setIn(original);
         }
+    }
+
+    private record AppResult(int exitCode, String stdout, String stderr) {}
+
+    /** Runs the App driver with captured streams, never touching the real ones. */
+    private AppResult runApp(String stdin, String... args) {
+        PrintStream originalOut = System.out;
+        PrintStream originalErr = System.err;
+        InputStream originalIn = System.in;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(out));
+        System.setErr(new PrintStream(err));
+        System.setIn(new ByteArrayInputStream(stdin.getBytes()));
+        try {
+            int code = App.run(args);
+            return new AppResult(code, out.toString(), err.toString());
+        } finally {
+            System.setOut(originalOut);
+            System.setErr(originalErr);
+            System.setIn(originalIn);
+        }
+    }
+
+    private Path sourceFile(String name, String source) throws IOException {
+        Path file = scratchFile(name);
+        Files.writeString(file, source);
+        return file;
     }
 
     /** Returns a fresh path under target/, usable inside a program as a string literal. */
@@ -1417,6 +1446,71 @@ public class AppTest {
             """.formatted(file.toString().replace('\\', '/')));
 
         assertEquals(List.of("existing", "added"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testAppCompilesAndRunsAProgram() throws IOException {
+        Path src = sourceFile("cli-ok.lang", "write 1 + 1;\n");
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals("2", r.stdout().trim());
+        assertEquals("", r.stderr());
+    }
+
+    @Test
+    public void testAppReadsFromStdin() throws IOException {
+        Path src = sourceFile("cli-read.lang", "int a;\nread a;\nwrite a * 2;\n");
+        AppResult r = runApp("21\n", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals("42", r.stdout().trim());
+    }
+
+    @Test
+    public void testAppWithoutArgumentsPrintsUsage() {
+        AppResult r = runApp("");
+
+        assertEquals(1, r.exitCode());
+        assertTrue(r.stderr().contains("Usage"));
+    }
+
+    @Test
+    public void testAppReportsUnreadableFile() {
+        AppResult r = runApp("", "no-such-file.lang");
+
+        assertEquals(1, r.exitCode());
+        assertTrue(r.stderr().contains("Cannot read file: no-such-file.lang"));
+    }
+
+    @Test
+    public void testAppExitsWithOneOnSyntaxErrors() throws IOException {
+        Path src = sourceFile("cli-syntax.lang", "int a\n");
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(1, r.exitCode());
+        assertTrue(r.stderr().contains("Aborted due to syntax errors."));
+        assertEquals("", r.stdout());
+    }
+
+    @Test
+    public void testAppExitsWithOneOnTypeErrors() throws IOException {
+        Path src = sourceFile("cli-type.lang", "write x;\n");
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(1, r.exitCode());
+        assertTrue(r.stderr().contains("Variable 'x' is not declared."));
+        assertTrue(r.stderr().contains("Aborted due to type errors."));
+        assertEquals("", r.stdout());
+    }
+
+    @Test
+    public void testAppExitsWithTwoOnRuntimeErrors() throws IOException {
+        Path src = sourceFile("cli-runtime.lang", "write 1 / 0;\n");
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(2, r.exitCode());
+        assertTrue(r.stderr().contains("Runtime error: Division by zero"));
     }
 
     @Test

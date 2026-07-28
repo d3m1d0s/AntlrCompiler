@@ -5,6 +5,7 @@ import cz.university.runtime.FileHandle;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class StackMachine {
@@ -398,7 +399,7 @@ public class StackMachine {
             default -> throw new MachineException("Unknown file mode: " + mode);
         }
 
-        try (FileWriter fw = new FileWriter(filename, keepContent)) {
+        try (FileWriter fw = new FileWriter(filename, StandardCharsets.UTF_8, keepContent)) {
             // Opening the file creates it when missing and truncates it in "w".
         } catch (IOException e) {
             throw new MachineException("Failed to open file: " + filename, e);
@@ -419,7 +420,7 @@ public class StackMachine {
 
         FileHandle fileHandle = (FileHandle) handle;
 
-        try (FileWriter fw = new FileWriter(fileHandle.getName(), true);
+        try (FileWriter fw = new FileWriter(fileHandle.getName(), StandardCharsets.UTF_8, true);
              PrintWriter writer = new PrintWriter(fw)) {
             for (Object val : values) {
                 writer.print(val);
