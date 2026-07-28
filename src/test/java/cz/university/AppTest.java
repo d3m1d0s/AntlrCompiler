@@ -705,6 +705,62 @@ public class AppTest {
     }
 
     @Test
+    public void testUnaryMinusBindsTighterThanAddition() {
+        System.out.println("---- testUnaryMinusBindsTighterThanAddition ----");
+        String input = """
+        write -2 + 3;
+        """;
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push I 2", "uminus I", "push I 3", "add I", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testUnaryMinusBindsTighterThanComparison() {
+        System.out.println("---- testUnaryMinusBindsTighterThanComparison ----");
+        String input = """
+        write -2 < 1;
+        """;
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push I 2", "uminus I", "push I 1", "lt I", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testNotBindsTighterThanAnd() {
+        System.out.println("---- testNotBindsTighterThanAnd ----");
+        String input = """
+        bool r;
+        r = !false && false;
+        """;
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push B false", "save r",
+                "push B false", "not", "push B false", "and", "save r", "load r", "pop"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
     public void testChainAssignment() {
         System.out.println("---- testChainAssignment ----");
         String input = """

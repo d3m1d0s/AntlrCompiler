@@ -27,14 +27,14 @@ variableList: IDENTIFIER (',' IDENTIFIER)*;
 exprList: expr (',' expr)*;
 
 expr
-    : left=expr op=('*' | '/' | '%') right=expr        # multiplicativeExpr
+    : op='!' expr                                      # notExpr
+    | op='-' expr                                      # unaryMinusExpr
+    | left=expr op=('*' | '/' | '%') right=expr        # multiplicativeExpr
     | left=expr op=('+' | '-' | '.') right=expr        # additiveExpr
     | left=expr op=('<' | '>') right=expr              # relationalExpr
     | left=expr op=('==' | '!=') right=expr            # equalityExpr
     | left=expr op='&&' right=expr                     # andExpr
     | left=expr op='||' right=expr                     # orExpr
-    | op='!' expr                                      # notExpr
-    | op='-' expr                                      # unaryMinusExpr
     | left=expr op='<<' right=expr                     # fileAppendExpr
     | left=IDENTIFIER '=' right=expr                   # assignExpr
     | 'open' '(' STRING ',' STRING ')'                 # fileOpenExpr
