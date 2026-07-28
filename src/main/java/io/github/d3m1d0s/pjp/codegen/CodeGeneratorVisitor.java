@@ -232,33 +232,30 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
     public SymbolTable.Type visitRelationalExpr(io.github.d3m1d0s.pjp.LanguageParser.RelationalExprContext ctx) {
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
-        String op = ctx.getChild(1).getText();
+        String op = ctx.op.getText();
 
         SymbolTable.Type leftType = symbolTable.getExprType(leftExpr);
         SymbolTable.Type rightType = symbolTable.getExprType(rightExpr);
         boolean floatComparison = (leftType == SymbolTable.Type.FLOAT || rightType == SymbolTable.Type.FLOAT);
 
-        SymbolTable.Type left = visit(leftExpr);
+        visit(leftExpr);
         if (floatComparison && leftType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        SymbolTable.Type right = visit(rightExpr);
+        visit(rightExpr);
         if (floatComparison && rightType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        if (floatComparison) {
-            instructions.add(new Instruction(op.equals("<") ? Instruction.OpCode.LT_F : Instruction.OpCode.GT_F));
-            return SymbolTable.Type.BOOL;
-        }
-
-        if (leftType == SymbolTable.Type.INT && rightType == SymbolTable.Type.INT) {
-            instructions.add(new Instruction(op.equals("<") ? Instruction.OpCode.LT_I : Instruction.OpCode.GT_I));
-            return SymbolTable.Type.BOOL;
-        }
-
-        return null;
+        instructions.add(new Instruction(switch (op) {
+            case "<" -> floatComparison ? Instruction.OpCode.LT_F : Instruction.OpCode.LT_I;
+            case ">" -> floatComparison ? Instruction.OpCode.GT_F : Instruction.OpCode.GT_I;
+            case "<=" -> floatComparison ? Instruction.OpCode.LE_F : Instruction.OpCode.LE_I;
+            case ">=" -> floatComparison ? Instruction.OpCode.GE_F : Instruction.OpCode.GE_I;
+            default -> throw new RuntimeException("Unknown relational operator: " + op);
+        }));
+        return SymbolTable.Type.BOOL;
     }
 
     @Override

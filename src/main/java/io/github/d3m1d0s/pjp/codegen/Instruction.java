@@ -15,6 +15,8 @@ public class Instruction {
         AND, OR,
         GT_I, GT_F,
         LT_I, LT_F,
+        GE_I, GE_F,
+        LE_I, LE_F,
         EQ_I, EQ_F, EQ_S, EQ_B,
         NOT,
         ITOF,

@@ -513,6 +513,64 @@ public class AppTest {
     }
 
     @Test
+    public void testLessOrEqualInt() {
+        String input = """
+        write 1 <= 2;
+        """;
+
+        List<Instruction> instr = generate(input);
+
+        List<String> expected = List.of(
+                "push I 1", "push I 2", "le I", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testGreaterOrEqualWithFloatPromotion() {
+        String input = """
+        write 2 >= 1.5;
+        """;
+
+        List<Instruction> instr = generate(input);
+
+        List<String> expected = List.of(
+                "push I 2", "itof", "push F 1.5", "ge F", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testOrderingOperatorsRunEndToEnd() throws IOException {
+        Path src = sourceFile("cli-ordering.lang", """
+            write 1 <= 1;
+            write 2 <= 1;
+            write 1 >= 1;
+            write 1 >= 2;
+            write 1.5 <= 1.5;
+            """);
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals(List.of("true", "false", "true", "false", "true"), r.stdout().lines().toList());
+    }
+
+    @Test
+    public void testOrderingOperatorsRejectStrings() {
+        List<String> errors = typeErrors("write \"a\" <= \"b\";\n");
+
+        assertEquals(List.of(
+                "1,10: Relational operators are only valid for int or float. Got: STRING, STRING"
+        ), errors);
+    }
+
+    @Test
     public void testGreaterThanFloatWithPromotion() {
         String input = """
         int a;

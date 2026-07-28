@@ -31,7 +31,7 @@ expr
     | op='-' expr                                      # unaryMinusExpr
     | left=expr op=('*' | '/' | '%') right=expr        # multiplicativeExpr
     | left=expr op=('+' | '-' | '.') right=expr        # additiveExpr
-    | left=expr op=('<' | '>') right=expr              # relationalExpr
+    | left=expr op=('<' | '>' | '<=' | '>=') right=expr # relationalExpr
     | left=expr op=('==' | '!=') right=expr            # equalityExpr
     | left=expr op='&&' right=expr                     # andExpr
     | left=expr op='||' right=expr                     # orExpr
