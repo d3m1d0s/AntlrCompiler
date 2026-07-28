@@ -83,7 +83,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         String name = ctx.IDENTIFIER().getText();
         SymbolTable.Type type = null;
         try {
-            type = symbolTable.getType(name, ctx.getStart().getLine());
+            type = symbolTable.getType(name);
         } catch (TypeException e) {
             throw new RuntimeException(e);
         }
@@ -125,8 +125,8 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
 
-        SymbolTable.Type leftType = symbolTable.getExprType(leftExpr, ctx.getStart().getLine());
-        SymbolTable.Type rightType = symbolTable.getExprType(rightExpr, ctx.getStart().getLine());
+        SymbolTable.Type leftType = symbolTable.getExprType(leftExpr);
+        SymbolTable.Type rightType = symbolTable.getExprType(rightExpr);
 
         String op = ctx.op.getText();
         if (op.equals(".")) {
@@ -171,8 +171,8 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
 
-        SymbolTable.Type leftType = symbolTable.getExprType(leftExpr, ctx.getStart().getLine());
-        SymbolTable.Type rightType = symbolTable.getExprType(rightExpr, ctx.getStart().getLine());
+        SymbolTable.Type leftType = symbolTable.getExprType(leftExpr);
+        SymbolTable.Type rightType = symbolTable.getExprType(rightExpr);
 
         SymbolTable.Type resultType = (leftType == SymbolTable.Type.FLOAT || rightType == SymbolTable.Type.FLOAT)
                 ? SymbolTable.Type.FLOAT
@@ -208,8 +208,8 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         String op = ctx.op.getText();
 
         int line = ctx.getStart().getLine();
-        SymbolTable.Type leftType = symbolTable.getExprType(leftExpr, line);
-        SymbolTable.Type rightType = symbolTable.getExprType(rightExpr, line);
+        SymbolTable.Type leftType = symbolTable.getExprType(leftExpr);
+        SymbolTable.Type rightType = symbolTable.getExprType(rightExpr);
 
         boolean floatComparison = (leftType == SymbolTable.Type.FLOAT || rightType == SymbolTable.Type.FLOAT);
 
@@ -249,11 +249,10 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     public SymbolTable.Type visitRelationalExpr(cz.university.LanguageParser.RelationalExprContext ctx) {
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
-        int line = ctx.getStart().getLine();
         String op = ctx.getChild(1).getText();
 
-        SymbolTable.Type leftType = symbolTable.getExprType(leftExpr, line);
-        SymbolTable.Type rightType = symbolTable.getExprType(rightExpr, line);
+        SymbolTable.Type leftType = symbolTable.getExprType(leftExpr);
+        SymbolTable.Type rightType = symbolTable.getExprType(rightExpr);
         boolean floatComparison = (leftType == SymbolTable.Type.FLOAT || rightType == SymbolTable.Type.FLOAT);
 
         SymbolTable.Type left = visit(leftExpr);
@@ -330,9 +329,8 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     public SymbolTable.Type visitReadStatement(cz.university.LanguageParser.ReadStatementContext ctx) {
         for (var id : ctx.identifierList().IDENTIFIER()) {
             String name = id.getText();
-            int line = id.getSymbol().getLine();
             try {
-                SymbolTable.Type varType = symbolTable.getType(name, line);
+                SymbolTable.Type varType = symbolTable.getType(name);
                 switch (varType) {
                     case INT -> instructions.add(new Instruction(Instruction.OpCode.READ_I));
                     case FLOAT -> instructions.add(new Instruction(Instruction.OpCode.READ_F));
@@ -403,8 +401,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         String endLabel = nextLabel();
 
         if (ctx.forInit() != null && ctx.forInit().getChildCount() > 0) {
-            generateHeaderAssignment(ctx.forInit().IDENTIFIER().getText(),
-                    ctx.forInit().expr(), ctx.getStart().getLine());
+            generateHeaderAssignment(ctx.forInit().IDENTIFIER().getText(), ctx.forInit().expr());
         }
 
         instructions.add(new Instruction(Instruction.OpCode.LABEL, startLabel));
@@ -417,8 +414,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         visit(ctx.statement());
 
         if (ctx.forUpdate() != null && ctx.forUpdate().getChildCount() > 0) {
-            generateHeaderAssignment(ctx.forUpdate().IDENTIFIER().getText(),
-                    ctx.forUpdate().expr(), ctx.getStart().getLine());
+            generateHeaderAssignment(ctx.forUpdate().IDENTIFIER().getText(), ctx.forUpdate().expr());
         }
 
         instructions.add(new Instruction(Instruction.OpCode.JMP, startLabel));
@@ -447,7 +443,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         String varName = ctx.left.getText();
         SymbolTable.Type varType;
         try {
-            varType = symbolTable.getType(varName, ctx.getStart().getLine());
+            varType = symbolTable.getType(varName);
         } catch (TypeException e) {
             throw new RuntimeException(e);
         }
@@ -529,10 +525,10 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
 
-    private void generateHeaderAssignment(String name, cz.university.LanguageParser.ExprContext expr, int line) {
+    private void generateHeaderAssignment(String name, cz.university.LanguageParser.ExprContext expr) {
         SymbolTable.Type varType;
         try {
-            varType = symbolTable.getType(name, line);
+            varType = symbolTable.getType(name);
         } catch (TypeException e) {
             throw new RuntimeException(e);
         }

@@ -33,9 +33,9 @@ public class App {
         //System.out.println(checker.getSymbolTableDebug());
 
         if (!checker.getErrors().isEmpty()) {
-            checker.getErrors().forEach(System.out::println);
-            System.out.println("Aborted due to type errors.");
-            return;
+            checker.getErrors().forEach(System.err::println);
+            System.err.println("Aborted due to type errors.");
+            System.exit(1);
         }
 
         System.out.println(tree.toStringTree(parser));

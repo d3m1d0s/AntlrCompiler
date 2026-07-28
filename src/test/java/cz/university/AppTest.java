@@ -63,32 +63,32 @@ public class AppTest {
     @Test
     public void testInitialValues() throws TypeException {
         SymbolTable st = new SymbolTable();
-        st.declare("n", SymbolTable.Type.INT, 1);
-        st.declare("t", SymbolTable.Type.STRING, 1);
-        assertEquals(0, st.getValue("n", 1));
-        assertEquals("", st.getValue("t", 1));
+        st.declare("n", SymbolTable.Type.INT);
+        st.declare("t", SymbolTable.Type.STRING);
+        assertEquals(0, st.getValue("n"));
+        assertEquals("", st.getValue("t"));
     }
 
     @Test
     public void testBoolAndFloatDefaults() throws TypeException {
         SymbolTable st = new SymbolTable();
-        st.declare("b", SymbolTable.Type.BOOL, 1);
-        st.declare("f", SymbolTable.Type.FLOAT, 1);
-        assertEquals(false, st.getValue("b", 1));
-        assertEquals(0.0, st.getValue("f", 1));
+        st.declare("b", SymbolTable.Type.BOOL);
+        st.declare("f", SymbolTable.Type.FLOAT);
+        assertEquals(false, st.getValue("b"));
+        assertEquals(0.0, st.getValue("f"));
     }
 
     @Test(expected = TypeException.class)
     public void testDoubleDeclarationThrowsException() throws TypeException {
         SymbolTable st = new SymbolTable();
-        st.declare("x", SymbolTable.Type.INT, 1);
-        st.declare("x", SymbolTable.Type.FLOAT, 2);
+        st.declare("x", SymbolTable.Type.INT);
+        st.declare("x", SymbolTable.Type.FLOAT);
     }
 
     @Test(expected = TypeException.class)
     public void testUndeclaredVariableThrowsException() throws TypeException {
         SymbolTable st = new SymbolTable();
-        st.getType("y", 3);
+        st.getType("y");
     }
 
     @Test
@@ -852,7 +852,7 @@ public class AppTest {
         errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
-        assertEquals("1: variable 'q' not declared.", errors.get(0));
+        assertEquals("1,5: Variable 'q' is not declared.", errors.get(0));
     }
 
     @Test
@@ -865,7 +865,7 @@ public class AppTest {
         errors.forEach(System.out::println);
 
         assertEquals(1, errors.size());
-        assertEquals("2: variable 'q' not declared.", errors.get(0));
+        assertEquals("2,18: Variable 'q' is not declared.", errors.get(0));
     }
 
     @Test
@@ -1182,6 +1182,23 @@ public class AppTest {
             """));
         assertTrue("unexpected message: " + e.getMessage(),
                 e.getMessage().startsWith("Failed to open file:"));
+    }
+
+    @Test
+    public void testUndeclaredVariableErrorsCarryPositions() {
+        System.out.println("---- testUndeclaredVariableErrorsCarryPositions ----");
+        List<String> errors = typeErrors("""
+        x = 5;
+        write y;
+        int x, x;
+        """);
+        errors.forEach(System.out::println);
+
+        assertEquals(List.of(
+                "1,0: Variable 'x' is not declared.",
+                "2,6: Variable 'y' is not declared.",
+                "3,7: Variable 'x' is already declared."
+        ), errors);
     }
 
     @Test

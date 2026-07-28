@@ -34,26 +34,26 @@ public class SymbolTable {
 
     private final Map<String, VariableInfo> table = new HashMap<>();
 
-    public void declare(String name, Type type, int line) throws TypeException {
+    public void declare(String name, Type type) throws TypeException {
         if (table.containsKey(name)) {
-            throw new TypeException(line + ": variable '" + name + "' already declared.");
+            throw new TypeException("Variable '" + name + "' is already declared.");
         }
         table.put(name, new VariableInfo(type));
     }
 
-    public Type getType(String name, int line) throws TypeException {
+    public Type getType(String name) throws TypeException {
         VariableInfo info = table.get(name);
         if (info == null) {
-            throw new TypeException(line + ": variable '" + name + "' not declared.");
+            throw new TypeException("Variable '" + name + "' is not declared.");
         }
         return info.type;
     }
 
-    public Type getExprType(ParserRuleContext ctx, int line) {
+    public Type getExprType(ParserRuleContext ctx) {
         if (ctx instanceof cz.university.LanguageParser.IdExprContext idCtx) {
             String name = idCtx.IDENTIFIER().getText();
             try {
-                return getType(name, line);
+                return getType(name);
             } catch (TypeException e) {
                 throw new RuntimeException(e);
             }
@@ -63,10 +63,10 @@ public class SymbolTable {
         if (ctx instanceof cz.university.LanguageParser.BoolExprContext) return Type.BOOL;
         if (ctx instanceof cz.university.LanguageParser.StringExprContext) return Type.STRING;
         if (ctx instanceof cz.university.LanguageParser.ParenExprContext parenCtx) {
-            return getExprType(parenCtx.expr(), line);
+            return getExprType(parenCtx.expr());
         }
         if (ctx instanceof cz.university.LanguageParser.UnaryMinusExprContext unaryCtx) {
-            return getExprType(unaryCtx.expr(), line);
+            return getExprType(unaryCtx.expr());
         }
         if (ctx instanceof cz.university.LanguageParser.FileOpenExprContext
                 || ctx instanceof cz.university.LanguageParser.FileAppendExprContext) {
@@ -74,8 +74,8 @@ public class SymbolTable {
         }
 
         if (ctx instanceof cz.university.LanguageParser.AdditiveExprContext addCtx) {
-            Type left = getExprType(addCtx.left, line);
-            Type right = getExprType(addCtx.right, line);
+            Type left = getExprType(addCtx.left);
+            Type right = getExprType(addCtx.right);
             if (left == Type.FLOAT || right == Type.FLOAT) return Type.FLOAT;
             if (left == Type.INT && right == Type.INT) return Type.INT;
             if (left == Type.STRING && right == Type.STRING) return Type.STRING;
@@ -83,8 +83,8 @@ public class SymbolTable {
         }
 
         if (ctx instanceof cz.university.LanguageParser.MultiplicativeExprContext mulCtx) {
-            Type left = getExprType(mulCtx.left, line);
-            Type right = getExprType(mulCtx.right, line);
+            Type left = getExprType(mulCtx.left);
+            Type right = getExprType(mulCtx.right);
             if (left == Type.FLOAT || right == Type.FLOAT) return Type.FLOAT;
             if (left == Type.INT && right == Type.INT) return Type.INT;
             throw new RuntimeException("Cannot infer type for multiplicative expr: " + ctx.getText());
@@ -93,7 +93,7 @@ public class SymbolTable {
         if (ctx instanceof cz.university.LanguageParser.AssignExprContext assignCtx) {
             String name = assignCtx.left.getText();
             try {
-                return getType(name, line);
+                return getType(name);
             } catch (TypeException e) {
                 throw new RuntimeException(e);
             }
@@ -112,18 +112,18 @@ public class SymbolTable {
 
 
 
-    public Object getValue(String name, int line) throws TypeException {
+    public Object getValue(String name) throws TypeException {
         VariableInfo info = table.get(name);
         if (info == null) {
-            throw new TypeException(line + ": variable '" + name + "' not declared.");
+            throw new TypeException("Variable '" + name + "' is not declared.");
         }
         return info.value;
     }
 
-    public void setValue(String name, Object value, int line) throws TypeException {
+    public void setValue(String name, Object value) throws TypeException {
         VariableInfo info = table.get(name);
         if (info == null) {
-            throw new TypeException(line + ": variable '" + name + "' not declared.");
+            throw new TypeException("Variable '" + name + "' is not declared.");
         }
         info.value = value;
     }

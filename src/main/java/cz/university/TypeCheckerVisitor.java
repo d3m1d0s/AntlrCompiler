@@ -21,12 +21,10 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     public SymbolTable.Type visitDeclaration(cz.university.LanguageParser.DeclarationContext ctx) {
         SymbolTable.Type declaredType = getTypeFromKeyword(ctx.primitiveType().getText());
         for (var id : ctx.variableList().IDENTIFIER()) {
-            String name = id.getText();
-            int line = id.getSymbol().getLine();
             try {
-                symbolTable.declare(name, declaredType, line);
+                symbolTable.declare(id.getText(), declaredType);
             } catch (TypeException e) {
-                errors.add(e.getMessage());
+                typeError(id.getSymbol(), e.getMessage());
             }
         }
         return null;
@@ -69,12 +67,10 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
     @Override
     public SymbolTable.Type visitIdExpr(cz.university.LanguageParser.IdExprContext ctx) {
-        String name = ctx.IDENTIFIER().getText();
-        int line = ctx.getStart().getLine();
         try {
-            return symbolTable.getType(name, line);
+            return symbolTable.getType(ctx.IDENTIFIER().getText());
         } catch (TypeException e) {
-            errors.add(e.getMessage());
+            typeError(ctx.getStart(), e.getMessage());
             return null;
         }
     }
@@ -194,9 +190,8 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     public SymbolTable.Type visitReadStatement(cz.university.LanguageParser.ReadStatementContext ctx) {
         for (var id : ctx.identifierList().IDENTIFIER()) {
             String name = id.getText();
-            int line = id.getSymbol().getLine();
             try {
-                SymbolTable.Type varType = symbolTable.getType(name, line);
+                SymbolTable.Type varType = symbolTable.getType(name);
                 if (varType != SymbolTable.Type.INT &&
                         varType != SymbolTable.Type.FLOAT &&
                         varType != SymbolTable.Type.BOOL &&
@@ -204,7 +199,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
                     typeError(id.getSymbol(), "Variable '" + name + "' has unsupported type for read: " + varType);
                 }
             } catch (TypeException e) {
-                errors.add(e.getMessage());
+                typeError(id.getSymbol(), e.getMessage());
             }
         }
         return null;
@@ -324,10 +319,9 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     @Override
     public SymbolTable.Type visitAssignExpr(cz.university.LanguageParser.AssignExprContext ctx) {
         String varName = ctx.left.getText();
-        int line = ctx.getStart().getLine();
 
         try {
-            SymbolTable.Type varType = symbolTable.getType(varName, line);
+            SymbolTable.Type varType = symbolTable.getType(varName);
             SymbolTable.Type valueType = visit(ctx.right);
 
             if (valueType == null) {
@@ -343,7 +337,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
             return varType;
         } catch (TypeException e) {
-            errors.add(e.getMessage());
+            typeError(ctx.left, e.getMessage());
             return null;
         }
     }
@@ -369,9 +363,9 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     private void checkHeaderAssignment(TerminalNode id, cz.university.LanguageParser.ExprContext expr, String clause) {
         SymbolTable.Type varType = null;
         try {
-            varType = symbolTable.getType(id.getText(), id.getSymbol().getLine());
+            varType = symbolTable.getType(id.getText());
         } catch (TypeException e) {
-            errors.add(e.getMessage());
+            typeError(id.getSymbol(), e.getMessage());
         }
 
         SymbolTable.Type valueType = visit(expr);
