@@ -3,12 +3,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>cz.university</groupId>
-  <artifactId>AntlrCompiler</artifactId>
+  <artifactId>pjp-antlr-compiler</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>AntlrCompiler</name>
-  <url>http://maven.apache.org</url>
+  <name>PJP ANTLR Compiler</name>
+  <description>Compiler and stack machine interpreter for a small imperative language, built with ANTLR 4</description>
+  <url>https://github.com/d3m1d0s/PJP_antlr-compiler</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
