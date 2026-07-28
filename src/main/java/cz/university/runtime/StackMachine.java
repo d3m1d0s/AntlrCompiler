@@ -401,6 +401,9 @@ public class StackMachine {
         } catch (IOException e) {
             throw new RuntimeException("Failed to append to file: " + fileHandle.getName(), e);
         }
+
+        // The append yields the file again, so appends compose like expressions.
+        stack.push(fileHandle);
     }
 
 }

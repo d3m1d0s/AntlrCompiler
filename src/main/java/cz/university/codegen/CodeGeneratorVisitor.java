@@ -73,11 +73,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     @Override
     public SymbolTable.Type visitExpressionStatement(cz.university.LanguageParser.ExpressionStatementContext ctx) {
         SymbolTable.Type type = visit(ctx.expr());
-
-        if (type != SymbolTable.Type.FILE) {
-            instructions.add(new Instruction(Instruction.OpCode.POP));
-        }
-
+        instructions.add(new Instruction(Instruction.OpCode.POP));
         return type;
     }
 
@@ -460,10 +456,11 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        // Assigning a plain string to a file variable names the file without a
-        // mode, so supply the default one that fopen expects as its second operand.
+        // Assigning a plain string to a file variable opens the named file in
+        // the default append mode.
         if (varType == SymbolTable.Type.FILE && valueType == SymbolTable.Type.STRING) {
             instructions.add(new Instruction(Instruction.OpCode.PUSH_S, "a"));
+            instructions.add(new Instruction(Instruction.OpCode.FOPEN));
         }
 
         addSaveInstruction(varType, varName);
@@ -471,9 +468,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         // An assignment is an expression, so its value has to stay on the stack
         // for the surrounding expression. The stack machine has no dup, hence
         // the reload. Statement level discards it again with a pop.
-        if (varType != SymbolTable.Type.FILE) {
-            instructions.add(new Instruction(Instruction.OpCode.LOAD, varName));
-        }
+        instructions.add(new Instruction(Instruction.OpCode.LOAD, varName));
 
         return varType;
     }
@@ -516,6 +511,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         // are empty or contain spaces survive the text instruction encoding.
         instructions.add(new Instruction(Instruction.OpCode.PUSH_S, filename));
         instructions.add(new Instruction(Instruction.OpCode.PUSH_S, mode));
+        instructions.add(new Instruction(Instruction.OpCode.FOPEN));
 
         return SymbolTable.Type.FILE;
     }
@@ -555,10 +551,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
             case FLOAT -> instructions.add(new Instruction(Instruction.OpCode.SAVE_F, name));
             case BOOL -> instructions.add(new Instruction(Instruction.OpCode.SAVE_B, name));
             case STRING -> instructions.add(new Instruction(Instruction.OpCode.SAVE_S, name));
-            case FILE -> {
-                instructions.add(new Instruction(Instruction.OpCode.FOPEN));
-                instructions.add(new Instruction(Instruction.OpCode.SAVE_FILE, name));
-            }
+            case FILE -> instructions.add(new Instruction(Instruction.OpCode.SAVE_FILE, name));
         }
     }
 

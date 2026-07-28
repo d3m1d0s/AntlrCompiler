@@ -1046,10 +1046,10 @@ public class AppTest {
         instr.forEach(System.out::println);
 
         List<String> expected = List.of(
-                "push S \"file_append_output.txt\"", "push S a", "fopen", "save f",
-                "load f", "push S \"Hello, \"", "fappend 1",
-                "load f", "push S \"World!\"", "fappend 1",
-                "load f", "push I 1", "push S \"A\"", "push I 2", "fappend 3"
+                "push S \"file_append_output.txt\"", "push S a", "fopen", "save f", "load f", "pop",
+                "load f", "push S \"Hello, \"", "fappend 1", "pop",
+                "load f", "push S \"World!\"", "fappend 1", "pop",
+                "load f", "push I 1", "push S \"A\"", "push I 2", "fappend 3", "pop"
         );
 
         for (int i = 0; i < expected.size(); i++) {
@@ -1074,16 +1074,16 @@ public class AppTest {
         List<String> expected = List.of(
 
                 // f = open("output.txt", "a")
-                "push S \"output.txt\"", "push S a", "fopen", "save f",
+                "push S \"output.txt\"", "push S a", "fopen", "save f", "load f", "pop",
 
                 // f << "Line 1" << 42
-                "load f", "push S \"Line 1\"", "push I 42", "fappend 2",
+                "load f", "push S \"Line 1\"", "push I 42", "fappend 2", "pop",
 
                 // f = open("output.txt", "w")
-                "push S \"output.txt\"", "push S w", "fopen", "save f",
+                "push S \"output.txt\"", "push S w", "fopen", "save f", "load f", "pop",
 
                 // f << "Overwrite"
-                "load f", "push S \"Overwrite\"", "fappend 1"
+                "load f", "push S \"Overwrite\"", "fappend 1", "pop"
         );
 
         for (int i = 0; i < expected.size(); i++) {
@@ -1179,6 +1179,72 @@ public class AppTest {
             """));
         assertTrue("unexpected message: " + e.getMessage(),
                 e.getMessage().startsWith("Failed to open file:"));
+    }
+
+    @Test
+    public void testFileToFileAssignment() throws IOException {
+        System.out.println("---- testFileToFileAssignment ----");
+        Path file = scratchFile("shared.txt");
+
+        run("""
+            file f;
+            file g;
+            f = open("%s", "w");
+            f << "via f";
+            g = f;
+            g << "via g";
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertEquals(List.of("via f", "via g"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testChainedFileAssignment() throws IOException {
+        System.out.println("---- testChainedFileAssignment ----");
+        Path file = scratchFile("chained.txt");
+
+        run("""
+            file f1;
+            file f2;
+            f1 = f2 = "%s";
+            f1 << "one";
+            f2 << "two";
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertEquals(List.of("one", "two"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testParenthesizedAppendChain() throws IOException {
+        System.out.println("---- testParenthesizedAppendChain ----");
+        Path file = scratchFile("paren-chain.txt");
+
+        run("""
+            file f;
+            f = open("%s", "w");
+            (f << 1) << 2;
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertEquals(List.of("1", "2"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testOpenOutsideAssignmentYieldsHandle() {
+        System.out.println("---- testOpenOutsideAssignmentYieldsHandle ----");
+        String input = """
+        write open("target/file-tests/inline.txt", "w");
+        """;
+
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push S \"target/file-tests/inline.txt\"", "push S w", "fopen", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
     }
 
     @Test
