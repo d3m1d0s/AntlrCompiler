@@ -347,27 +347,16 @@ public class StackMachine {
     }
 
     private void fopen() {
-        check(!stack.isEmpty(), "Stack underflow on FOPEN");
+        check(stack.size() >= 2, "Stack underflow on FOPEN");
 
-        Object top = stack.pop();
-        String filename;
-        String mode;
+        Object mode = stack.pop();
+        Object name = stack.pop();
 
-        if (stack.isEmpty()) {
-            check(top instanceof String, "FOPEN expects string filename");
-            filename = (String) top;
-            mode = "a";
-        } else {
-            Object name = stack.pop();
+        check(name instanceof String, "FOPEN expects string filename");
+        check(mode instanceof String, "FOPEN expects string mode");
 
-            check(name instanceof String, "FOPEN expects string filename");
-            check(top instanceof String, "FOPEN expects string mode");
-
-            filename = (String) name;
-            mode = (String) top;
-        }
-
-        applyMode(filename, mode);
+        String filename = (String) name;
+        applyMode(filename, (String) mode);
         stack.push(new FileHandle(filename));
     }
 
@@ -385,7 +374,7 @@ public class StackMachine {
         try (FileWriter fw = new FileWriter(filename, keepContent)) {
             // Opening the file creates it when missing and truncates it in "w".
         } catch (IOException e) {
-            throw new RuntimeException("Failed to open file: " + filename);
+            throw new RuntimeException("Failed to open file: " + filename, e);
         }
     }
 
@@ -410,7 +399,7 @@ public class StackMachine {
             }
             writer.println();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to append to file: " + fileHandle.getName());
+            throw new RuntimeException("Failed to append to file: " + fileHandle.getName(), e);
         }
     }
 

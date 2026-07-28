@@ -460,6 +460,12 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
+        // Assigning a plain string to a file variable names the file without a
+        // mode, so supply the default one that fopen expects as its second operand.
+        if (varType == SymbolTable.Type.FILE && valueType == SymbolTable.Type.STRING) {
+            instructions.add(new Instruction(Instruction.OpCode.PUSH_S, "a"));
+        }
+
         addSaveInstruction(varType, varName);
 
         // An assignment is an expression, so its value has to stay on the stack

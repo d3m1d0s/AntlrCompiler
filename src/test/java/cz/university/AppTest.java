@@ -1046,7 +1046,7 @@ public class AppTest {
         instr.forEach(System.out::println);
 
         List<String> expected = List.of(
-                "push S \"file_append_output.txt\"", "fopen", "save f",
+                "push S \"file_append_output.txt\"", "push S a", "fopen", "save f",
                 "load f", "push S \"Hello, \"", "fappend 1",
                 "load f", "push S \"World!\"", "fappend 1",
                 "load f", "push I 1", "push S \"A\"", "push I 2", "fappend 3"
@@ -1154,6 +1154,40 @@ public class AppTest {
 
         assertTrue(Files.exists(file));
         assertEquals(List.of(), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testFopenReadsExactlyTwoOperands() throws IOException {
+        System.out.println("---- testFopenReadsExactlyTwoOperands ----");
+        Path leftover = scratchFile("leftover.txt");
+        Files.writeString(leftover, "must survive\n");
+        Path opened = scratchFile("opened.txt");
+
+        // A value left on the stack in front of the operands must not be mistaken
+        // for the file name, which would truncate a file the program never opened.
+        new StackMachine().execute(List.of(
+                "push S " + leftover.toString().replace('\\', '/'),
+                "push S " + opened.toString().replace('\\', '/'),
+                "push S w",
+                "fopen"));
+
+        assertEquals(List.of("must survive"), Files.readAllLines(leftover));
+        assertTrue(Files.exists(opened));
+    }
+
+    @Test
+    public void testFileNameAssignmentAppends() throws IOException {
+        System.out.println("---- testFileNameAssignmentAppends ----");
+        Path file = scratchFile("named.txt");
+        Files.writeString(file, "existing\n");
+
+        run("""
+            file f;
+            f = "%s";
+            f << "added";
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertEquals(List.of("existing", "added"), Files.readAllLines(file));
     }
 
     @Test
