@@ -507,13 +507,13 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         String filename = ctx.STRING(0).getText();
         String mode = ctx.STRING(1).getText();
 
-        filename = filename.substring(1, filename.length() - 1);
         mode = mode.substring(1, mode.length() - 1);
-
         if (!mode.equals("w") && !mode.equals("a")) {
             throw new RuntimeException("Invalid mode in open(): " + mode);
         }
 
+        // The file name keeps its quotes like any string literal, so names that
+        // are empty or contain spaces survive the text instruction encoding.
         instructions.add(new Instruction(Instruction.OpCode.PUSH_S, filename));
         instructions.add(new Instruction(Instruction.OpCode.PUSH_S, mode));
 

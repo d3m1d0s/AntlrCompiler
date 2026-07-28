@@ -1074,13 +1074,13 @@ public class AppTest {
         List<String> expected = List.of(
 
                 // f = open("output.txt", "a")
-                "push S output.txt", "push S a", "fopen", "save f",
+                "push S \"output.txt\"", "push S a", "fopen", "save f",
 
                 // f << "Line 1" << 42
                 "load f", "push S \"Line 1\"", "push I 42", "fappend 2",
 
                 // f = open("output.txt", "w")
-                "push S output.txt", "push S w", "fopen", "save f",
+                "push S \"output.txt\"", "push S w", "fopen", "save f",
 
                 // f << "Overwrite"
                 "load f", "push S \"Overwrite\"", "fappend 1"
@@ -1154,6 +1154,31 @@ public class AppTest {
 
         assertTrue(Files.exists(file));
         assertEquals(List.of(), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testFileNameWithSpacesSurvivesInstructionEncoding() throws IOException {
+        System.out.println("---- testFileNameWithSpacesSurvivesInstructionEncoding ----");
+        Path file = scratchFile("with space.txt");
+
+        run("""
+            file f;
+            f = open("%s", "w");
+            f << "content";
+            """.formatted(file.toString().replace('\\', '/')));
+
+        assertEquals(List.of("content"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testEmptyFileNameFailsCleanly() {
+        System.out.println("---- testEmptyFileNameFailsCleanly ----");
+        RuntimeException e = assertThrows(RuntimeException.class, () -> run("""
+            file f;
+            f = open("", "w");
+            """));
+        assertTrue("unexpected message: " + e.getMessage(),
+                e.getMessage().startsWith("Failed to open file:"));
     }
 
     @Test
