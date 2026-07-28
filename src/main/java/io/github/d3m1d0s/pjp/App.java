@@ -1,9 +1,9 @@
-package cz.university;
+package io.github.d3m1d0s.pjp;
 
-import cz.university.codegen.CodeGeneratorVisitor;
-import cz.university.codegen.Instruction;
-import cz.university.runtime.MachineException;
-import cz.university.runtime.StackMachine;
+import io.github.d3m1d0s.pjp.codegen.CodeGeneratorVisitor;
+import io.github.d3m1d0s.pjp.codegen.Instruction;
+import io.github.d3m1d0s.pjp.runtime.MachineException;
+import io.github.d3m1d0s.pjp.runtime.StackMachine;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;

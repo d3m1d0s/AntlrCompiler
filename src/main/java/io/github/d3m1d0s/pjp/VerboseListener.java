@@ -1,4 +1,4 @@
-package cz.university;
+package io.github.d3m1d0s.pjp;
 
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.RecognitionException;

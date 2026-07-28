@@ -1,8 +1,8 @@
-package cz.university.runtime;
+package io.github.d3m1d0s.pjp.runtime;
 
-import cz.university.runtime.FileHandle;
+import io.github.d3m1d0s.pjp.runtime.FileHandle;
 
-import cz.university.StringEscapes;
+import io.github.d3m1d0s.pjp.StringEscapes;
 
 import java.io.FileWriter;
 import java.io.IOException;

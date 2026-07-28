@@ -1,6 +1,6 @@
-package cz.university.codegen;
+package io.github.d3m1d0s.pjp.codegen;
 
-import cz.university.StringEscapes;
+import io.github.d3m1d0s.pjp.StringEscapes;
 
 public class Instruction {
 

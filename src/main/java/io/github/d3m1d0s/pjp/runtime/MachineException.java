@@ -1,4 +1,4 @@
-package cz.university.runtime;
+package io.github.d3m1d0s.pjp.runtime;
 
 /**
  * An error raised by the running program, as opposed to a defect in the

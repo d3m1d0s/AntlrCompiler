@@ -1,9 +1,9 @@
-package cz.university;
+package io.github.d3m1d0s.pjp;
 
-import cz.university.codegen.CodeGeneratorVisitor;
-import cz.university.codegen.Instruction;
-import cz.university.runtime.MachineException;
-import cz.university.runtime.StackMachine;
+import io.github.d3m1d0s.pjp.codegen.CodeGeneratorVisitor;
+import io.github.d3m1d0s.pjp.codegen.Instruction;
+import io.github.d3m1d0s.pjp.runtime.MachineException;
+import io.github.d3m1d0s.pjp.runtime.StackMachine;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 import org.junit.Test;
@@ -25,9 +25,9 @@ public class AppTest {
 
     private List<Instruction> generate(String source) {
         CharStream input = CharStreams.fromString(source);
-        cz.university.LanguageLexer lexer = new cz.university.LanguageLexer(input);
+        io.github.d3m1d0s.pjp.LanguageLexer lexer = new io.github.d3m1d0s.pjp.LanguageLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        cz.university.LanguageParser parser = new cz.university.LanguageParser(tokens);
+        io.github.d3m1d0s.pjp.LanguageParser parser = new io.github.d3m1d0s.pjp.LanguageParser(tokens);
         ParseTree tree = parser.program();
 
         TypeCheckerVisitor checker = new TypeCheckerVisitor();
@@ -98,12 +98,12 @@ public class AppTest {
         System.setErr(new PrintStream(OutputStream.nullOutputStream()));
         try {
             CharStream input = CharStreams.fromString(source);
-            cz.university.LanguageLexer lexer = new cz.university.LanguageLexer(input);
+            io.github.d3m1d0s.pjp.LanguageLexer lexer = new io.github.d3m1d0s.pjp.LanguageLexer(input);
             VerboseListener listener = new VerboseListener();
             lexer.removeErrorListeners();
             lexer.addErrorListener(listener);
             CommonTokenStream tokens = new CommonTokenStream(lexer);
-            cz.university.LanguageParser parser = new cz.university.LanguageParser(tokens);
+            io.github.d3m1d0s.pjp.LanguageParser parser = new io.github.d3m1d0s.pjp.LanguageParser(tokens);
             parser.removeErrorListeners();
             parser.addErrorListener(listener);
             parser.program();
@@ -115,9 +115,9 @@ public class AppTest {
 
     private List<String> typeErrors(String source) {
         CharStream input = CharStreams.fromString(source);
-        cz.university.LanguageLexer lexer = new cz.university.LanguageLexer(input);
+        io.github.d3m1d0s.pjp.LanguageLexer lexer = new io.github.d3m1d0s.pjp.LanguageLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        cz.university.LanguageParser parser = new cz.university.LanguageParser(tokens);
+        io.github.d3m1d0s.pjp.LanguageParser parser = new io.github.d3m1d0s.pjp.LanguageParser(tokens);
         ParseTree tree = parser.program();
 
         TypeCheckerVisitor checker = new TypeCheckerVisitor();

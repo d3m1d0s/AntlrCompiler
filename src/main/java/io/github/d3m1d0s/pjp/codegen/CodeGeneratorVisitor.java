@@ -1,7 +1,7 @@
-package cz.university.codegen;
+package io.github.d3m1d0s.pjp.codegen;
 
-import cz.university.StringEscapes;
-import cz.university.SymbolTable;
+import io.github.d3m1d0s.pjp.StringEscapes;
+import io.github.d3m1d0s.pjp.SymbolTable;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<SymbolTable.Type> {
+public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisitor<SymbolTable.Type> {
 
     private final SymbolTable symbolTable;
     private final List<Instruction> instructions = new ArrayList<>();
@@ -29,7 +29,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitDeclaration(cz.university.LanguageParser.DeclarationContext ctx) {
+    public SymbolTable.Type visitDeclaration(io.github.d3m1d0s.pjp.LanguageParser.DeclarationContext ctx) {
         for (TerminalNode id : ctx.variableList().IDENTIFIER()) {
             SymbolTable.VariableInfo variable = symbolTable.resolved(id.getSymbol());
             String name = variable.runtimeName;
@@ -60,7 +60,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitExpressionStatement(cz.university.LanguageParser.ExpressionStatementContext ctx) {
+    public SymbolTable.Type visitExpressionStatement(io.github.d3m1d0s.pjp.LanguageParser.ExpressionStatementContext ctx) {
         SymbolTable.Type type = visit(ctx.expr());
         instructions.add(new Instruction(Instruction.OpCode.POP));
         return type;
@@ -68,43 +68,43 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
 
     @Override
-    public SymbolTable.Type visitIdExpr(cz.university.LanguageParser.IdExprContext ctx) {
+    public SymbolTable.Type visitIdExpr(io.github.d3m1d0s.pjp.LanguageParser.IdExprContext ctx) {
         SymbolTable.VariableInfo variable = symbolTable.resolved(ctx.IDENTIFIER().getSymbol());
         instructions.add(new Instruction(Instruction.OpCode.LOAD, variable.runtimeName));
         return variable.type;
     }
 
     @Override
-    public SymbolTable.Type visitIntExpr(cz.university.LanguageParser.IntExprContext ctx) {
+    public SymbolTable.Type visitIntExpr(io.github.d3m1d0s.pjp.LanguageParser.IntExprContext ctx) {
         instructions.add(new Instruction(Instruction.OpCode.PUSH_I, ctx.getText()));
         return SymbolTable.Type.INT;
     }
 
     @Override
-    public SymbolTable.Type visitFloatExpr(cz.university.LanguageParser.FloatExprContext ctx) {
+    public SymbolTable.Type visitFloatExpr(io.github.d3m1d0s.pjp.LanguageParser.FloatExprContext ctx) {
         instructions.add(new Instruction(Instruction.OpCode.PUSH_F, ctx.getText()));
         return SymbolTable.Type.FLOAT;
     }
 
     @Override
-    public SymbolTable.Type visitBoolExpr(cz.university.LanguageParser.BoolExprContext ctx) {
+    public SymbolTable.Type visitBoolExpr(io.github.d3m1d0s.pjp.LanguageParser.BoolExprContext ctx) {
         instructions.add(new Instruction(Instruction.OpCode.PUSH_B, ctx.getText()));
         return SymbolTable.Type.BOOL;
     }
 
     @Override
-    public SymbolTable.Type visitStringExpr(cz.university.LanguageParser.StringExprContext ctx) {
+    public SymbolTable.Type visitStringExpr(io.github.d3m1d0s.pjp.LanguageParser.StringExprContext ctx) {
         instructions.add(new Instruction(Instruction.OpCode.PUSH_S, StringEscapes.decode(ctx.getText())));
         return SymbolTable.Type.STRING;
     }
 
     @Override
-    public SymbolTable.Type visitParenExpr(cz.university.LanguageParser.ParenExprContext ctx) {
+    public SymbolTable.Type visitParenExpr(io.github.d3m1d0s.pjp.LanguageParser.ParenExprContext ctx) {
         return visit(ctx.expr());
     }
 
     @Override
-    public SymbolTable.Type visitAdditiveExpr(cz.university.LanguageParser.AdditiveExprContext ctx) {
+    public SymbolTable.Type visitAdditiveExpr(io.github.d3m1d0s.pjp.LanguageParser.AdditiveExprContext ctx) {
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
 
@@ -150,7 +150,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
 
     @Override
-    public SymbolTable.Type visitMultiplicativeExpr(cz.university.LanguageParser.MultiplicativeExprContext ctx) {
+    public SymbolTable.Type visitMultiplicativeExpr(io.github.d3m1d0s.pjp.LanguageParser.MultiplicativeExprContext ctx) {
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
 
@@ -185,7 +185,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitEqualityExpr(cz.university.LanguageParser.EqualityExprContext ctx) {
+    public SymbolTable.Type visitEqualityExpr(io.github.d3m1d0s.pjp.LanguageParser.EqualityExprContext ctx) {
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
         String op = ctx.op.getText();
@@ -229,7 +229,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitRelationalExpr(cz.university.LanguageParser.RelationalExprContext ctx) {
+    public SymbolTable.Type visitRelationalExpr(io.github.d3m1d0s.pjp.LanguageParser.RelationalExprContext ctx) {
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
         String op = ctx.getChild(1).getText();
@@ -262,7 +262,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitNotExpr(cz.university.LanguageParser.NotExprContext ctx) {
+    public SymbolTable.Type visitNotExpr(io.github.d3m1d0s.pjp.LanguageParser.NotExprContext ctx) {
         SymbolTable.Type type = visit(ctx.expr());
         if (type == SymbolTable.Type.BOOL) {
             instructions.add(new Instruction(Instruction.OpCode.NOT));
@@ -272,7 +272,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitAndExpr(cz.university.LanguageParser.AndExprContext ctx) {
+    public SymbolTable.Type visitAndExpr(io.github.d3m1d0s.pjp.LanguageParser.AndExprContext ctx) {
         SymbolTable.Type left = visit(ctx.expr(0));
         SymbolTable.Type right = visit(ctx.expr(1));
 
@@ -284,7 +284,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitOrExpr(cz.university.LanguageParser.OrExprContext ctx) {
+    public SymbolTable.Type visitOrExpr(io.github.d3m1d0s.pjp.LanguageParser.OrExprContext ctx) {
         SymbolTable.Type left = visit(ctx.expr(0));
         SymbolTable.Type right = visit(ctx.expr(1));
 
@@ -296,7 +296,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitWriteStatement(cz.university.LanguageParser.WriteStatementContext ctx) {
+    public SymbolTable.Type visitWriteStatement(io.github.d3m1d0s.pjp.LanguageParser.WriteStatementContext ctx) {
         int count = 0;
         for (var expr : ctx.exprList().expr()) {
             visit(expr);
@@ -309,7 +309,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
 
     @Override
-    public SymbolTable.Type visitReadStatement(cz.university.LanguageParser.ReadStatementContext ctx) {
+    public SymbolTable.Type visitReadStatement(io.github.d3m1d0s.pjp.LanguageParser.ReadStatementContext ctx) {
         for (var id : ctx.identifierList().IDENTIFIER()) {
             SymbolTable.VariableInfo variable = symbolTable.resolved(id.getSymbol());
 
@@ -326,7 +326,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitWhileStatement(cz.university.LanguageParser.WhileStatementContext ctx) {
+    public SymbolTable.Type visitWhileStatement(io.github.d3m1d0s.pjp.LanguageParser.WhileStatementContext ctx) {
         String startLabel = nextLabel();
         String endLabel = nextLabel();
 
@@ -345,7 +345,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitIfStatement(cz.university.LanguageParser.IfStatementContext ctx) {
+    public SymbolTable.Type visitIfStatement(io.github.d3m1d0s.pjp.LanguageParser.IfStatementContext ctx) {
         String elseLabel = nextLabel();
         String endLabel = nextLabel();
 
@@ -371,7 +371,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
 
     @Override
-    public SymbolTable.Type visitForStatement(cz.university.LanguageParser.ForStatementContext ctx) {
+    public SymbolTable.Type visitForStatement(io.github.d3m1d0s.pjp.LanguageParser.ForStatementContext ctx) {
         String startLabel = nextLabel();
         String endLabel = nextLabel();
 
@@ -399,7 +399,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitUnaryMinusExpr(cz.university.LanguageParser.UnaryMinusExprContext ctx) {
+    public SymbolTable.Type visitUnaryMinusExpr(io.github.d3m1d0s.pjp.LanguageParser.UnaryMinusExprContext ctx) {
         SymbolTable.Type type = visit(ctx.expr());
 
         switch (type) {
@@ -412,7 +412,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitAssignExpr(cz.university.LanguageParser.AssignExprContext ctx) {
+    public SymbolTable.Type visitAssignExpr(io.github.d3m1d0s.pjp.LanguageParser.AssignExprContext ctx) {
         SymbolTable.Type valueType = visit(ctx.right);
 
         SymbolTable.VariableInfo variable = symbolTable.resolved(ctx.left);
@@ -439,13 +439,13 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitFileAppendExpr(cz.university.LanguageParser.FileAppendExprContext ctx) {
+    public SymbolTable.Type visitFileAppendExpr(io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext ctx) {
         List<ParserRuleContext> exprs = new ArrayList<>();
-        cz.university.LanguageParser.ExprContext current = ctx;
+        io.github.d3m1d0s.pjp.LanguageParser.ExprContext current = ctx;
 
-        while (current instanceof cz.university.LanguageParser.FileAppendExprContext appendCtx) {
-            exprs.add(((cz.university.LanguageParser.FileAppendExprContext) current).right);
-            current = ((cz.university.LanguageParser.FileAppendExprContext) current).left;
+        while (current instanceof io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext appendCtx) {
+            exprs.add(((io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext) current).right);
+            current = ((io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext) current).left;
         }
 
         SymbolTable.Type fileType = visit(current);
@@ -463,7 +463,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
     @Override
-    public SymbolTable.Type visitFileOpenExpr(cz.university.LanguageParser.FileOpenExprContext ctx) {
+    public SymbolTable.Type visitFileOpenExpr(io.github.d3m1d0s.pjp.LanguageParser.FileOpenExprContext ctx) {
         String filename = StringEscapes.decode(ctx.STRING(0).getText());
         String mode = StringEscapes.decode(ctx.STRING(1).getText());
 
@@ -480,8 +480,8 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
 
 
-    private cz.university.LanguageParser.ExprContext collectFileAndValues(cz.university.LanguageParser.ExprContext expr, List<cz.university.LanguageParser.ExprContext> values) {
-        if (expr instanceof cz.university.LanguageParser.FileAppendExprContext fae) {
+    private io.github.d3m1d0s.pjp.LanguageParser.ExprContext collectFileAndValues(io.github.d3m1d0s.pjp.LanguageParser.ExprContext expr, List<io.github.d3m1d0s.pjp.LanguageParser.ExprContext> values) {
+        if (expr instanceof io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext fae) {
             values.add(fae.right);
             return collectFileAndValues(fae.left, values);
         } else {
@@ -491,7 +491,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
 
-    private void generateHeaderAssignment(TerminalNode id, cz.university.LanguageParser.ExprContext expr) {
+    private void generateHeaderAssignment(TerminalNode id, io.github.d3m1d0s.pjp.LanguageParser.ExprContext expr) {
         SymbolTable.VariableInfo variable = symbolTable.resolved(id.getSymbol());
 
         SymbolTable.Type valueType = visit(expr);

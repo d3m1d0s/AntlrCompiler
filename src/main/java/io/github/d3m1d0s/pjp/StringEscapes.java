@@ -1,4 +1,4 @@
-package cz.university;
+package io.github.d3m1d0s.pjp;
 
 /**
  * The one place that knows how string values are written down, both in

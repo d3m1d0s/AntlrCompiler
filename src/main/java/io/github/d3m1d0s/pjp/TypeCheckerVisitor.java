@@ -1,4 +1,4 @@
-package cz.university;
+package io.github.d3m1d0s.pjp;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -8,7 +8,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<SymbolTable.Type> {
+public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisitor<SymbolTable.Type> {
 
     private final SymbolTable symbolTable = new SymbolTable();
     private final List<String> errors = new ArrayList<>();
@@ -21,7 +21,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     // === Statements ===
 
     @Override
-    public SymbolTable.Type visitDeclaration(cz.university.LanguageParser.DeclarationContext ctx) {
+    public SymbolTable.Type visitDeclaration(io.github.d3m1d0s.pjp.LanguageParser.DeclarationContext ctx) {
         SymbolTable.Type declaredType = getTypeFromKeyword(ctx.primitiveType().getText());
         for (var id : ctx.variableList().IDENTIFIER()) {
             try {
@@ -34,18 +34,18 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitExpressionStatement(cz.university.LanguageParser.ExpressionStatementContext ctx) {
+    public SymbolTable.Type visitExpressionStatement(io.github.d3m1d0s.pjp.LanguageParser.ExpressionStatementContext ctx) {
         return visit(ctx.expr());
     }
 
     // === Expressions ===
     @Override
-    public SymbolTable.Type visitEmptyStatement(cz.university.LanguageParser.EmptyStatementContext ctx) {
+    public SymbolTable.Type visitEmptyStatement(io.github.d3m1d0s.pjp.LanguageParser.EmptyStatementContext ctx) {
         return null;
     }
 
     @Override
-    public SymbolTable.Type visitFileAppendExpr(cz.university.LanguageParser.FileAppendExprContext ctx) {
+    public SymbolTable.Type visitFileAppendExpr(io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext ctx) {
         SymbolTable.Type leftType = visit(ctx.expr(0));
         SymbolTable.Type rightType = visit(ctx.expr(1));
 
@@ -71,7 +71,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitIdExpr(cz.university.LanguageParser.IdExprContext ctx) {
+    public SymbolTable.Type visitIdExpr(io.github.d3m1d0s.pjp.LanguageParser.IdExprContext ctx) {
         try {
             return symbolTable.reference(ctx.getStart());
         } catch (TypeException e) {
@@ -81,7 +81,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitIntExpr(cz.university.LanguageParser.IntExprContext ctx) {
+    public SymbolTable.Type visitIntExpr(io.github.d3m1d0s.pjp.LanguageParser.IntExprContext ctx) {
         try {
             Integer.parseInt(ctx.getText());
         } catch (NumberFormatException e) {
@@ -91,28 +91,28 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitFloatExpr(cz.university.LanguageParser.FloatExprContext ctx) {
+    public SymbolTable.Type visitFloatExpr(io.github.d3m1d0s.pjp.LanguageParser.FloatExprContext ctx) {
         return SymbolTable.Type.FLOAT;
     }
 
     @Override
-    public SymbolTable.Type visitBoolExpr(cz.university.LanguageParser.BoolExprContext ctx) {
+    public SymbolTable.Type visitBoolExpr(io.github.d3m1d0s.pjp.LanguageParser.BoolExprContext ctx) {
         return SymbolTable.Type.BOOL;
     }
 
     @Override
-    public SymbolTable.Type visitStringExpr(cz.university.LanguageParser.StringExprContext ctx) {
+    public SymbolTable.Type visitStringExpr(io.github.d3m1d0s.pjp.LanguageParser.StringExprContext ctx) {
         decodeLiteral(ctx.getStart());
         return SymbolTable.Type.STRING;
     }
 
     @Override
-    public SymbolTable.Type visitParenExpr(cz.university.LanguageParser.ParenExprContext ctx) {
+    public SymbolTable.Type visitParenExpr(io.github.d3m1d0s.pjp.LanguageParser.ParenExprContext ctx) {
         return visit(ctx.expr());
     }
 
     @Override
-    public SymbolTable.Type visitAdditiveExpr(cz.university.LanguageParser.AdditiveExprContext ctx) {
+    public SymbolTable.Type visitAdditiveExpr(io.github.d3m1d0s.pjp.LanguageParser.AdditiveExprContext ctx) {
         SymbolTable.Type left = visit(ctx.expr(0));
         SymbolTable.Type right = visit(ctx.expr(1));
         String op = ctx.getChild(1).getText();
@@ -133,7 +133,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitMultiplicativeExpr(cz.university.LanguageParser.MultiplicativeExprContext ctx) {
+    public SymbolTable.Type visitMultiplicativeExpr(io.github.d3m1d0s.pjp.LanguageParser.MultiplicativeExprContext ctx) {
         String op = ctx.getChild(1).getText();
         SymbolTable.Type left = visit(ctx.expr(0));
         SymbolTable.Type right = visit(ctx.expr(1));
@@ -150,7 +150,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitEqualityExpr(cz.university.LanguageParser.EqualityExprContext ctx) {
+    public SymbolTable.Type visitEqualityExpr(io.github.d3m1d0s.pjp.LanguageParser.EqualityExprContext ctx) {
         SymbolTable.Type left = visit(ctx.expr(0));
         SymbolTable.Type right = visit(ctx.expr(1));
 
@@ -174,7 +174,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
 
     @Override
-    public SymbolTable.Type visitRelationalExpr(cz.university.LanguageParser.RelationalExprContext ctx) {
+    public SymbolTable.Type visitRelationalExpr(io.github.d3m1d0s.pjp.LanguageParser.RelationalExprContext ctx) {
         SymbolTable.Type left = visit(ctx.expr(0));
         SymbolTable.Type right = visit(ctx.expr(1));
 
@@ -192,7 +192,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitReadStatement(cz.university.LanguageParser.ReadStatementContext ctx) {
+    public SymbolTable.Type visitReadStatement(io.github.d3m1d0s.pjp.LanguageParser.ReadStatementContext ctx) {
         for (var id : ctx.identifierList().IDENTIFIER()) {
             String name = id.getText();
             try {
@@ -212,7 +212,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
 
     @Override
-    public SymbolTable.Type visitWriteStatement(cz.university.LanguageParser.WriteStatementContext ctx) {
+    public SymbolTable.Type visitWriteStatement(io.github.d3m1d0s.pjp.LanguageParser.WriteStatementContext ctx) {
         for (var expr : ctx.exprList().expr()) {
             visit(expr);
         }
@@ -220,7 +220,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitIfStatement(cz.university.LanguageParser.IfStatementContext ctx) {
+    public SymbolTable.Type visitIfStatement(io.github.d3m1d0s.pjp.LanguageParser.IfStatementContext ctx) {
         SymbolTable.Type conditionType = visit(ctx.expr());
         if (conditionType != null && conditionType != SymbolTable.Type.BOOL) {
             Token opToken = (Token) ctx.getChild(1).getPayload();
@@ -234,7 +234,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitWhileStatement(cz.university.LanguageParser.WhileStatementContext ctx) {
+    public SymbolTable.Type visitWhileStatement(io.github.d3m1d0s.pjp.LanguageParser.WhileStatementContext ctx) {
         SymbolTable.Type conditionType = visit(ctx.expr());
         if (conditionType != null && conditionType != SymbolTable.Type.BOOL) {
             Token opToken = (Token) ctx.getChild(1).getPayload();
@@ -245,7 +245,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitBlockStatement(cz.university.LanguageParser.BlockStatementContext ctx) {
+    public SymbolTable.Type visitBlockStatement(io.github.d3m1d0s.pjp.LanguageParser.BlockStatementContext ctx) {
         symbolTable.enterScope();
         for (var stmt : ctx.statement()) {
             visit(stmt);
@@ -256,7 +256,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
     // The body of a control statement is its own scope even without braces,
     // so a declaration used as the body cannot leak into the surrounding one.
-    private void visitBody(cz.university.LanguageParser.StatementContext body) {
+    private void visitBody(io.github.d3m1d0s.pjp.LanguageParser.StatementContext body) {
         symbolTable.enterScope();
         visit(body);
         symbolTable.exitScope();
@@ -264,16 +264,16 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
 
     @Override
-    public SymbolTable.Type visitAndExpr(cz.university.LanguageParser.AndExprContext ctx) {
+    public SymbolTable.Type visitAndExpr(io.github.d3m1d0s.pjp.LanguageParser.AndExprContext ctx) {
         return visitLogicalBinary(ctx.expr(0), ctx.expr(1), ctx,"&&");
     }
 
     @Override
-    public SymbolTable.Type visitOrExpr(cz.university.LanguageParser.OrExprContext ctx) {
+    public SymbolTable.Type visitOrExpr(io.github.d3m1d0s.pjp.LanguageParser.OrExprContext ctx) {
         return visitLogicalBinary(ctx.expr(0), ctx.expr(1), ctx, "||");
     }
 
-    private SymbolTable.Type visitLogicalBinary(cz.university.LanguageParser.ExprContext leftExpr, cz.university.LanguageParser.ExprContext rightExpr, ParserRuleContext ctx, String op) {
+    private SymbolTable.Type visitLogicalBinary(io.github.d3m1d0s.pjp.LanguageParser.ExprContext leftExpr, io.github.d3m1d0s.pjp.LanguageParser.ExprContext rightExpr, ParserRuleContext ctx, String op) {
         SymbolTable.Type left = visit(leftExpr);
         SymbolTable.Type right = visit(rightExpr);
 
@@ -288,7 +288,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitNotExpr(cz.university.LanguageParser.NotExprContext ctx) {
+    public SymbolTable.Type visitNotExpr(io.github.d3m1d0s.pjp.LanguageParser.NotExprContext ctx) {
         SymbolTable.Type type = visit(ctx.expr());
         if (type == null) return null;
 
@@ -300,7 +300,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitUnaryMinusExpr(cz.university.LanguageParser.UnaryMinusExprContext ctx) {
+    public SymbolTable.Type visitUnaryMinusExpr(io.github.d3m1d0s.pjp.LanguageParser.UnaryMinusExprContext ctx) {
         SymbolTable.Type type = visit(ctx.expr());
         if (type == null) return null;
 
@@ -314,7 +314,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
 
     @Override
-    public SymbolTable.Type visitForStatement(cz.university.LanguageParser.ForStatementContext ctx) {
+    public SymbolTable.Type visitForStatement(io.github.d3m1d0s.pjp.LanguageParser.ForStatementContext ctx) {
         if (ctx.forInit() != null && ctx.forInit().getChildCount() > 0) {
             checkHeaderAssignment(ctx.forInit().IDENTIFIER(), ctx.forInit().expr(), "for-init");
         }
@@ -336,7 +336,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitAssignExpr(cz.university.LanguageParser.AssignExprContext ctx) {
+    public SymbolTable.Type visitAssignExpr(io.github.d3m1d0s.pjp.LanguageParser.AssignExprContext ctx) {
         String varName = ctx.left.getText();
 
         try {
@@ -361,7 +361,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     }
 
     @Override
-    public SymbolTable.Type visitFileOpenExpr(cz.university.LanguageParser.FileOpenExprContext ctx) {
+    public SymbolTable.Type visitFileOpenExpr(io.github.d3m1d0s.pjp.LanguageParser.FileOpenExprContext ctx) {
         String name = decodeLiteral(ctx.STRING(0).getSymbol());
         if (name != null && name.isEmpty()) {
             typeError(ctx.STRING(0).getSymbol(), "File name in open() must not be empty.");
@@ -387,7 +387,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
     // === Helpers ===
 
-    private void checkHeaderAssignment(TerminalNode id, cz.university.LanguageParser.ExprContext expr, String clause) {
+    private void checkHeaderAssignment(TerminalNode id, io.github.d3m1d0s.pjp.LanguageParser.ExprContext expr, String clause) {
         SymbolTable.Type varType = null;
         try {
             varType = symbolTable.reference(id.getSymbol());

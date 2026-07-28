@@ -1,4 +1,4 @@
-package cz.university.runtime;
+package io.github.d3m1d0s.pjp.runtime;
 
 public class FileHandle {
     private final String name;

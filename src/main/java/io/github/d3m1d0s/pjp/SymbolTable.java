@@ -1,4 +1,4 @@
-package cz.university;
+package io.github.d3m1d0s.pjp;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
@@ -123,25 +123,25 @@ public class SymbolTable {
     }
 
     public Type getExprType(ParserRuleContext ctx) {
-        if (ctx instanceof cz.university.LanguageParser.IdExprContext idCtx) {
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.IdExprContext idCtx) {
             return resolved(idCtx.IDENTIFIER().getSymbol()).type;
         }
-        if (ctx instanceof cz.university.LanguageParser.IntExprContext) return Type.INT;
-        if (ctx instanceof cz.university.LanguageParser.FloatExprContext) return Type.FLOAT;
-        if (ctx instanceof cz.university.LanguageParser.BoolExprContext) return Type.BOOL;
-        if (ctx instanceof cz.university.LanguageParser.StringExprContext) return Type.STRING;
-        if (ctx instanceof cz.university.LanguageParser.ParenExprContext parenCtx) {
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.IntExprContext) return Type.INT;
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.FloatExprContext) return Type.FLOAT;
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.BoolExprContext) return Type.BOOL;
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.StringExprContext) return Type.STRING;
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.ParenExprContext parenCtx) {
             return getExprType(parenCtx.expr());
         }
-        if (ctx instanceof cz.university.LanguageParser.UnaryMinusExprContext unaryCtx) {
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.UnaryMinusExprContext unaryCtx) {
             return getExprType(unaryCtx.expr());
         }
-        if (ctx instanceof cz.university.LanguageParser.FileOpenExprContext
-                || ctx instanceof cz.university.LanguageParser.FileAppendExprContext) {
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.FileOpenExprContext
+                || ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext) {
             return Type.FILE;
         }
 
-        if (ctx instanceof cz.university.LanguageParser.AdditiveExprContext addCtx) {
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.AdditiveExprContext addCtx) {
             Type left = getExprType(addCtx.left);
             Type right = getExprType(addCtx.right);
             if (left == Type.FLOAT || right == Type.FLOAT) return Type.FLOAT;
@@ -150,7 +150,7 @@ public class SymbolTable {
             throw new RuntimeException("Cannot infer type for additive expr: " + ctx.getText());
         }
 
-        if (ctx instanceof cz.university.LanguageParser.MultiplicativeExprContext mulCtx) {
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.MultiplicativeExprContext mulCtx) {
             Type left = getExprType(mulCtx.left);
             Type right = getExprType(mulCtx.right);
             if (left == Type.FLOAT || right == Type.FLOAT) return Type.FLOAT;
@@ -158,15 +158,15 @@ public class SymbolTable {
             throw new RuntimeException("Cannot infer type for multiplicative expr: " + ctx.getText());
         }
 
-        if (ctx instanceof cz.university.LanguageParser.AssignExprContext assignCtx) {
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.AssignExprContext assignCtx) {
             return resolved(assignCtx.left).type;
         }
 
-        if (ctx instanceof cz.university.LanguageParser.EqualityExprContext
-                || ctx instanceof cz.university.LanguageParser.RelationalExprContext
-                || ctx instanceof cz.university.LanguageParser.AndExprContext
-                || ctx instanceof cz.university.LanguageParser.OrExprContext
-                || ctx instanceof cz.university.LanguageParser.NotExprContext) {
+        if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.EqualityExprContext
+                || ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.RelationalExprContext
+                || ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.AndExprContext
+                || ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.OrExprContext
+                || ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.NotExprContext) {
             return Type.BOOL;
         }
 
