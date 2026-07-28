@@ -115,7 +115,7 @@ public class StackMachine {
                 stack.push(Integer.parseInt(value));
                 break;
             case "F":
-                stack.push(Float.parseFloat(value));
+                stack.push(Double.parseDouble(value));
                 break;
             case "S":
                 if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
@@ -201,7 +201,7 @@ public class StackMachine {
             }
             case "F" -> {
                 try {
-                    stack.push(Float.parseFloat(value));
+                    stack.push(Double.parseDouble(value));
                 } catch (NumberFormatException e) {
                     throw new MachineException(invalid);
                 }
@@ -245,13 +245,13 @@ public class StackMachine {
                 }
                 break;
             case "F":
-                float af = (a instanceof Integer) ? (Integer) a : (Float) a;
-                float bf = (b instanceof Integer) ? (Integer) b : (Float) b;
+                double af = (a instanceof Integer) ? (Integer) a : (Double) a;
+                double bf = (b instanceof Integer) ? (Integer) b : (Double) b;
                 switch (op) {
                     case "add": stack.push(af + bf); break;
                     case "sub": stack.push(af - bf); break;
                     case "mul": stack.push(af * bf); break;
-                    case "div": check(bf != 0.0f, "Division by zero"); stack.push(af / bf); break;
+                    case "div": check(bf != 0.0, "Division by zero"); stack.push(af / bf); break;
                     case "gt": stack.push(af > bf); break;
                     case "lt": stack.push(af < bf); break;
                     case "ge": stack.push(af >= bf); break;
@@ -291,7 +291,7 @@ public class StackMachine {
         if (type.equals("I")) {
             stack.push(-((Integer) value));
         } else if (type.equals("F")) {
-            stack.push(-((Float) value));
+            stack.push(-((Double) value));
         } else {
             throw new MachineException("Unknown UMINUS type: " + type);
         }
@@ -342,9 +342,9 @@ public class StackMachine {
         check(!stack.isEmpty(), "Stack underflow on ITOF");
         Object value = stack.pop();
         if (value instanceof Integer) {
-            stack.push(((Integer) value).floatValue());
+            stack.push(((Integer) value).doubleValue());
         } else {
-            stack.push(value); // already float
+            stack.push(value); // already a double
         }
     }
 
@@ -359,8 +359,8 @@ public class StackMachine {
         int intValue;
         if (value instanceof Integer) {
             intValue = (Integer) value;
-        } else if (value instanceof Float) {
-            intValue = ((Float) value).intValue();
+        } else if (value instanceof Double) {
+            intValue = ((Double) value).intValue();
         } else if (value instanceof Boolean) {
             intValue = ((Boolean) value) ? 1 : 0;
         } else {

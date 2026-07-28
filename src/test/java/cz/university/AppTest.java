@@ -1557,6 +1557,27 @@ public class AppTest {
     }
 
     @Test
+    public void testFloatValuesHaveDoublePrecision() throws IOException {
+        Path src = sourceFile("cli-double.lang", """
+            write 1.0 / 3.0;
+            write 123456789.5;
+            write 3.141592;
+            float x;
+            x = 16777217.0;
+            write x;
+            """);
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals(List.of(
+                "0.3333333333333333",
+                "1.234567895E8",
+                "3.141592",
+                "1.6777217E7"
+        ), r.stdout().lines().toList());
+    }
+
+    @Test
     public void testAppCompilesAndRunsAProgram() throws IOException {
         Path src = sourceFile("cli-ok.lang", "write 1 + 1;\n");
         AppResult r = runApp("", src.toString());
