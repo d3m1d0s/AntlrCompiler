@@ -8,7 +8,9 @@ import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,6 +40,16 @@ public class AppTest {
     private void run(String source) {
         List<String> program = generate(source).stream().map(Instruction::toString).toList();
         new StackMachine().execute(program);
+    }
+
+    private void runWithInput(String source, String input) {
+        InputStream original = System.in;
+        System.setIn(new ByteArrayInputStream(input.getBytes()));
+        try {
+            run(source);
+        } finally {
+            System.setIn(original);
+        }
     }
 
     /** Returns a fresh path under target/, usable inside a program as a string literal. */
@@ -1092,6 +1104,65 @@ public class AppTest {
         }
     }
 
+
+    @Test
+    public void testReadIntToleratesSurroundingWhitespace() throws IOException {
+        System.out.println("---- testReadIntToleratesSurroundingWhitespace ----");
+        Path file = scratchFile("read-int.txt");
+
+        runWithInput("""
+            int a;
+            read a;
+            file f;
+            f = open("%s", "w");
+            f << a;
+            """.formatted(file.toString().replace('\\', '/')), " 42 \n");
+
+        assertEquals(List.of("42"), Files.readAllLines(file));
+    }
+
+    @Test
+    public void testReadInvalidIntReportsTypeAndInput() {
+        System.out.println("---- testReadInvalidIntReportsTypeAndInput ----");
+        MachineException e = assertThrows(MachineException.class,
+                () -> runWithInput("int a;\nread a;\n", "abc\n"));
+        assertEquals("Invalid int input: \"abc\"", e.getMessage());
+    }
+
+    @Test
+    public void testReadInvalidFloatReportsTypeAndInput() {
+        System.out.println("---- testReadInvalidFloatReportsTypeAndInput ----");
+        MachineException e = assertThrows(MachineException.class,
+                () -> runWithInput("float x;\nread x;\n", "3,14\n"));
+        assertEquals("Invalid float input: \"3,14\"", e.getMessage());
+    }
+
+    @Test
+    public void testReadOnExhaustedInputReportsEndOfInput() {
+        System.out.println("---- testReadOnExhaustedInputReportsEndOfInput ----");
+        MachineException e = assertThrows(MachineException.class,
+                () -> runWithInput("int a;\nread a;\n", ""));
+        assertEquals("Input ended while reading int", e.getMessage());
+    }
+
+    @Test
+    public void testReadBoolIsStrict() throws IOException {
+        System.out.println("---- testReadBoolIsStrict ----");
+        MachineException e = assertThrows(MachineException.class,
+                () -> runWithInput("bool b;\nread b;\n", "yes\n"));
+        assertEquals("Invalid bool input: \"yes\"", e.getMessage());
+
+        Path file = scratchFile("read-bool.txt");
+        runWithInput("""
+            bool b;
+            read b;
+            file f;
+            f = open("%s", "w");
+            if (b) f << "istrue"; else f << "isfalse";
+            """.formatted(file.toString().replace('\\', '/')), "TRUE\n");
+
+        assertEquals(List.of("istrue"), Files.readAllLines(file));
+    }
 
     @Test
     public void testIntDivisionByZeroRaisesMachineError() {

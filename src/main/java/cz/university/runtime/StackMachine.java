@@ -165,25 +165,50 @@ public class StackMachine {
 
 
     private void read(String type) {
+        String typeName = switch (type) {
+            case "I" -> "int";
+            case "F" -> "float";
+            case "B" -> "bool";
+            case "S" -> "string";
+            default -> throw new MachineException("Unknown READ type: " + type);
+        };
+
+        String line;
         try {
-            switch (type) {
-                case "I":
-                    stack.push(Integer.parseInt(scanner.nextLine()));
-                    break;
-                case "F":
-                    stack.push(Float.parseFloat(scanner.nextLine()));
-                    break;
-                case "S":
-                    stack.push(scanner.nextLine());
-                    break;
-                case "B":
-                    stack.push(Boolean.parseBoolean(scanner.nextLine()));
-                    break;
-                default:
-                    throw new MachineException("Unknown READ type: " + type);
+            line = scanner.nextLine();
+        } catch (NoSuchElementException e) {
+            throw new MachineException("Input ended while reading " + typeName);
+        }
+
+        // String input is taken verbatim; the other types tolerate surrounding
+        // whitespace but reject anything that is not a value of the type.
+        String value = line.trim();
+        String invalid = "Invalid " + typeName + " input: \"" + line + "\"";
+        switch (type) {
+            case "I" -> {
+                try {
+                    stack.push(Integer.parseInt(value));
+                } catch (NumberFormatException e) {
+                    throw new MachineException(invalid);
+                }
             }
-        } catch (Exception e) {
-            throw new MachineException("Invalid input during READ");
+            case "F" -> {
+                try {
+                    stack.push(Float.parseFloat(value));
+                } catch (NumberFormatException e) {
+                    throw new MachineException(invalid);
+                }
+            }
+            case "B" -> {
+                if (value.equalsIgnoreCase("true")) {
+                    stack.push(true);
+                } else if (value.equalsIgnoreCase("false")) {
+                    stack.push(false);
+                } else {
+                    throw new MachineException(invalid);
+                }
+            }
+            case "S" -> stack.push(line);
         }
     }
 
