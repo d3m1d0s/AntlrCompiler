@@ -1,7 +1,9 @@
 package cz.university;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -10,6 +12,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
     private final SymbolTable symbolTable = new SymbolTable();
     private final List<String> errors = new ArrayList<>();
+    private final Set<String> reportedUndeclared = new HashSet<>();
 
     public List<String> getErrors() {
         return errors;
@@ -46,6 +49,8 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         SymbolTable.Type leftType = visit(ctx.expr(0));
         SymbolTable.Type rightType = visit(ctx.expr(1));
 
+        if (leftType == null || rightType == null) return null;
+
         if (leftType != SymbolTable.Type.FILE) {
             Token opToken = (Token) ctx.getChild(1).getPayload();
             typeError(opToken, "Left side of '<<' must be of type FILE.");
@@ -70,7 +75,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         try {
             return symbolTable.getType(ctx.IDENTIFIER().getText());
         } catch (TypeException e) {
-            typeError(ctx.getStart(), e.getMessage());
+            reportUndeclared(ctx.getStart(), ctx.IDENTIFIER().getText(), e);
             return null;
         }
     }
@@ -199,7 +204,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
                     typeError(id.getSymbol(), "Variable '" + name + "' has unsupported type for read: " + varType);
                 }
             } catch (TypeException e) {
-                typeError(id.getSymbol(), e.getMessage());
+                reportUndeclared(id.getSymbol(), name, e);
             }
         }
         return null;
@@ -262,6 +267,8 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         SymbolTable.Type left = visit(leftExpr);
         SymbolTable.Type right = visit(rightExpr);
 
+        if (left == null || right == null) return null;
+
         if (left == SymbolTable.Type.BOOL && right == SymbolTable.Type.BOOL) {
             return SymbolTable.Type.BOOL;
         }
@@ -273,6 +280,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     @Override
     public SymbolTable.Type visitNotExpr(cz.university.LanguageParser.NotExprContext ctx) {
         SymbolTable.Type type = visit(ctx.expr());
+        if (type == null) return null;
 
         if (type == SymbolTable.Type.BOOL) {
             return SymbolTable.Type.BOOL;
@@ -284,6 +292,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     @Override
     public SymbolTable.Type visitUnaryMinusExpr(cz.university.LanguageParser.UnaryMinusExprContext ctx) {
         SymbolTable.Type type = visit(ctx.expr());
+        if (type == null) return null;
 
         if (type == SymbolTable.Type.INT || type == SymbolTable.Type.FLOAT) {
             return type;
@@ -302,7 +311,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
         if (ctx.forCond() != null && ctx.forCond().expr() != null) {
             SymbolTable.Type condType = visit(ctx.forCond().expr());
-            if (condType != SymbolTable.Type.BOOL) {
+            if (condType != null && condType != SymbolTable.Type.BOOL) {
                 typeError(ctx.forCond().start, "Condition in for loop must be bool, got " + condType);
             }
         }
@@ -324,9 +333,8 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
             SymbolTable.Type varType = symbolTable.getType(varName);
             SymbolTable.Type valueType = visit(ctx.right);
 
+            // A null type means the right-hand side already produced an error.
             if (valueType == null) {
-                Token opToken = (Token) ctx.getChild(1).getPayload();
-                typeError(opToken, "Right-hand side of assignment to '" + varName + "' has invalid type.");
                 return null;
             }
 
@@ -337,7 +345,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
             return varType;
         } catch (TypeException e) {
-            typeError(ctx.left, e.getMessage());
+            reportUndeclared(ctx.left, varName, e);
             return null;
         }
     }
@@ -365,7 +373,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         try {
             varType = symbolTable.getType(id.getText());
         } catch (TypeException e) {
-            typeError(id.getSymbol(), e.getMessage());
+            reportUndeclared(id.getSymbol(), id.getText(), e);
         }
 
         SymbolTable.Type valueType = visit(expr);
@@ -414,6 +422,14 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         int line = token.getLine();
         int pos = token.getCharPositionInLine();
         errors.add(line + "," + pos + ": " + message);
+    }
+
+    // An undeclared variable is reported once per name, so a single missing
+    // declaration does not flood the output at every use site.
+    private void reportUndeclared(Token token, String name, TypeException e) {
+        if (reportedUndeclared.add(name)) {
+            typeError(token, e.getMessage());
+        }
     }
 
     public SymbolTable getSymbolTable() {
