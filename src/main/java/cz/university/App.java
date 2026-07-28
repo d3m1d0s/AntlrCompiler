@@ -1,6 +1,7 @@
 package cz.university;
 
 import cz.university.codegen.CodeGeneratorVisitor;
+import cz.university.runtime.MachineException;
 import cz.university.runtime.StackMachine;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
@@ -49,7 +50,15 @@ public class App {
 
         List<String> instructions = Files.readAllLines(Paths.get("output.out"));
         StackMachine machine = new StackMachine();
-        machine.execute(instructions);
+        try {
+            machine.execute(instructions);
+        } catch (MachineException e) {
+            System.err.println("Runtime error: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("Caused by: " + e.getCause().getMessage());
+            }
+            System.exit(2);
+        }
 
         System.out.println("FINISH: " + file);
     }

@@ -2,6 +2,7 @@ package cz.university;
 
 import cz.university.codegen.CodeGeneratorVisitor;
 import cz.university.codegen.Instruction;
+import cz.university.runtime.MachineException;
 import cz.university.runtime.StackMachine;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
@@ -1093,6 +1094,20 @@ public class AppTest {
 
 
     @Test
+    public void testIntDivisionByZeroRaisesMachineError() {
+        System.out.println("---- testIntDivisionByZeroRaisesMachineError ----");
+        MachineException e = assertThrows(MachineException.class, () -> run("write 1 / 0;\n"));
+        assertEquals("Division by zero", e.getMessage());
+    }
+
+    @Test
+    public void testModuloByZeroRaisesMachineError() {
+        System.out.println("---- testModuloByZeroRaisesMachineError ----");
+        MachineException e = assertThrows(MachineException.class, () -> run("write 5 % 0;\n"));
+        assertEquals("Division by zero", e.getMessage());
+    }
+
+    @Test
     public void testWriteModeTruncatesAtOpenOnly() throws IOException {
         System.out.println("---- testWriteModeTruncatesAtOpenOnly ----");
         Path file = scratchFile("write-mode.txt");
@@ -1176,12 +1191,13 @@ public class AppTest {
         // A literal empty name in open() is a compile error; via the string
         // form it is only known at run time and must fail as an open failure,
         // not as a crash while parsing the push instruction.
-        RuntimeException e = assertThrows(RuntimeException.class, () -> run("""
+        MachineException e = assertThrows(MachineException.class, () -> run("""
             file f;
             f = "";
             """));
         assertTrue("unexpected message: " + e.getMessage(),
                 e.getMessage().startsWith("Failed to open file:"));
+        assertNotNull("I/O failures must keep their cause", e.getCause());
     }
 
     @Test
@@ -1261,7 +1277,7 @@ public class AppTest {
     @Test
     public void testUnopenedFileVariableFailsWithClearMessage() {
         System.out.println("---- testUnopenedFileVariableFailsWithClearMessage ----");
-        RuntimeException e = assertThrows(RuntimeException.class, () -> run("""
+        MachineException e = assertThrows(MachineException.class, () -> run("""
             file f;
             f << "data";
             """));

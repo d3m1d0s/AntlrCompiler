@@ -89,7 +89,7 @@ public class StackMachine {
                     fappendN(Integer.parseInt(parts[1]));
                     break;
                 default:
-                    throw new RuntimeException("Unknown instruction: " + command);
+                    throw new MachineException("Unknown instruction: " + command);
             }
         }
     }
@@ -124,7 +124,7 @@ public class StackMachine {
                 stack.push(Boolean.parseBoolean(value));
                 break;
             default:
-                throw new RuntimeException("Unknown PUSH type: " + type);
+                throw new MachineException("Unknown PUSH type: " + type);
         }
     }
 
@@ -180,10 +180,10 @@ public class StackMachine {
                     stack.push(Boolean.parseBoolean(scanner.nextLine()));
                     break;
                 default:
-                    throw new RuntimeException("Unknown READ type: " + type);
+                    throw new MachineException("Unknown READ type: " + type);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Invalid input during READ");
+            throw new MachineException("Invalid input during READ");
         }
     }
 
@@ -209,7 +209,7 @@ public class StackMachine {
                     case "ge": stack.push(ai >= bi); break;
                     case "le": stack.push(ai <= bi); break;
                     case "eq": stack.push(ai == bi); break;
-                    default: throw new RuntimeException("Unsupported int operation: " + op);
+                    default: throw new MachineException("Unsupported int operation: " + op);
                 }
                 break;
             case "F":
@@ -225,7 +225,7 @@ public class StackMachine {
                     case "ge": stack.push(af >= bf); break;
                     case "le": stack.push(af <= bf); break;
                     case "eq": stack.push(af == bf); break;
-                    default: throw new RuntimeException("Unsupported float operation: " + op);
+                    default: throw new MachineException("Unsupported float operation: " + op);
                 }
                 break;
             case "S":
@@ -236,7 +236,7 @@ public class StackMachine {
                 } else if ("concat".equals(op)) {
                     stack.push(sa + sb);
                 } else {
-                    throw new RuntimeException("Unsupported string operation: " + op);
+                    throw new MachineException("Unsupported string operation: " + op);
                 }
                 break;
             case "B":
@@ -245,11 +245,11 @@ public class StackMachine {
                 if ("eq".equals(op)) {
                     stack.push(ba == bb);
                 } else {
-                    throw new RuntimeException("Unsupported boolean operation: " + op);
+                    throw new MachineException("Unsupported boolean operation: " + op);
                 }
                 break;
             default:
-                throw new RuntimeException("Unknown type for binary operation: " + type);
+                throw new MachineException("Unknown type for binary operation: " + type);
         }
     }
 
@@ -261,7 +261,7 @@ public class StackMachine {
         } else if (type.equals("F")) {
             stack.push(-((Float) value));
         } else {
-            throw new RuntimeException("Unknown UMINUS type: " + type);
+            throw new MachineException("Unknown UMINUS type: " + type);
         }
     }
 
@@ -281,7 +281,7 @@ public class StackMachine {
         switch (op) {
             case "and": stack.push(ba && bb); break;
             case "or": stack.push(ba || bb); break;
-            default: throw new RuntimeException("Unknown logical operation: " + op);
+            default: throw new MachineException("Unknown logical operation: " + op);
         }
     }
 
@@ -291,7 +291,7 @@ public class StackMachine {
         } else if (value instanceof Boolean) {
             return (Boolean) value;
         } else {
-            throw new RuntimeException("Unsupported type for boolean logic: " + value.getClass().getSimpleName());
+            throw new MachineException("Unsupported type for boolean logic: " + value.getClass().getSimpleName());
         }
     }
 
@@ -301,7 +301,7 @@ public class StackMachine {
         if (a instanceof Boolean bool) {
             stack.push(!bool);
         } else {
-            throw new RuntimeException("NOT applied to non-boolean");
+            throw new MachineException("NOT applied to non-boolean");
         }
     }
 
@@ -332,7 +332,7 @@ public class StackMachine {
         } else if (value instanceof Boolean) {
             intValue = ((Boolean) value) ? 1 : 0;
         } else {
-            throw new RuntimeException("Unsupported type for FJMP: " + value.getClass().getSimpleName());
+            throw new MachineException("Unsupported type for FJMP: " + value.getClass().getSimpleName());
         }
 
         if (intValue == 0) {
@@ -344,7 +344,7 @@ public class StackMachine {
 
     private void check(boolean condition, String errorMessage) {
         if (!condition) {
-            throw new RuntimeException(errorMessage);
+            throw new MachineException(errorMessage);
         }
     }
 
@@ -370,13 +370,13 @@ public class StackMachine {
         switch (mode) {
             case "w" -> keepContent = false;
             case "a" -> keepContent = true;
-            default -> throw new RuntimeException("Unknown file mode: " + mode);
+            default -> throw new MachineException("Unknown file mode: " + mode);
         }
 
         try (FileWriter fw = new FileWriter(filename, keepContent)) {
             // Opening the file creates it when missing and truncates it in "w".
         } catch (IOException e) {
-            throw new RuntimeException("Failed to open file: " + filename, e);
+            throw new MachineException("Failed to open file: " + filename, e);
         }
     }
 
@@ -401,7 +401,7 @@ public class StackMachine {
             }
             writer.println();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to append to file: " + fileHandle.getName(), e);
+            throw new MachineException("Failed to append to file: " + fileHandle.getName(), e);
         }
 
         // The append yields the file again, so appends compose like expressions.
