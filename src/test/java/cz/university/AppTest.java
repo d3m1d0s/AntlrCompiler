@@ -1185,6 +1185,37 @@ public class AppTest {
     }
 
     @Test
+    public void testIntLiteralOutOfRangeIsReportedAsTypeError() {
+        System.out.println("---- testIntLiteralOutOfRangeIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("write 2147483648;\n");
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("1,6: Integer literal out of range: 2147483648", errors.get(0));
+    }
+
+    @Test
+    public void testIntLiteralAtRangeBoundaryCompiles() {
+        System.out.println("---- testIntLiteralAtRangeBoundaryCompiles ----");
+        List<Instruction> instr = generate("write 2147483647;\n");
+        instr.forEach(System.out::println);
+
+        assertEquals("push I 2147483647", instr.get(0).toString());
+    }
+
+    @Test
+    public void testMostNegativeIntLiteralIsRejected() {
+        System.out.println("---- testMostNegativeIntLiteralIsRejected ----");
+        // "-2147483648" is unary minus applied to the literal 2147483648, which
+        // itself does not fit in an int, exactly as in C and Java source.
+        List<String> errors = typeErrors("write -2147483648;\n");
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("1,7: Integer literal out of range: 2147483648", errors.get(0));
+    }
+
+    @Test
     public void testInvalidOpenModeIsReportedAsTypeError() {
         System.out.println("---- testInvalidOpenModeIsReportedAsTypeError ----");
         List<String> errors = typeErrors("""

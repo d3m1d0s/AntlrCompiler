@@ -81,6 +81,11 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
 
     @Override
     public SymbolTable.Type visitIntExpr(cz.university.LanguageParser.IntExprContext ctx) {
+        try {
+            Integer.parseInt(ctx.getText());
+        } catch (NumberFormatException e) {
+            typeError(ctx.getStart(), "Integer literal out of range: " + ctx.getText());
+        }
         return SymbolTable.Type.INT;
     }
 
