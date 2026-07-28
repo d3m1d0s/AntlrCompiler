@@ -1,8 +1,12 @@
 package cz.university;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
 public class SymbolTable {
@@ -10,10 +14,13 @@ public class SymbolTable {
 
     public static class VariableInfo {
         public final Type type;
+        /** Name used in generated instructions, unique across all scopes. */
+        public final String runtimeName;
         public Object value;
 
-        public VariableInfo(Type type) {
+        public VariableInfo(Type type, String runtimeName) {
             this.type = type;
+            this.runtimeName = runtimeName;
             this.value = defaultValue(type);
         }
 
@@ -28,35 +35,96 @@ public class SymbolTable {
         }
     }
 
-    public Map<String, VariableInfo> getTable() {
-        return table;
+    private final Deque<Map<String, VariableInfo>> scopes = new ArrayDeque<>();
+    private final Map<String, Integer> nameCounters = new HashMap<>();
+
+    // Identifier occurrences resolved during type checking. The code generator
+    // runs after the scopes have been closed again, so it cannot resolve names
+    // itself; it looks up what the checker recorded here instead.
+    private final Map<Token, VariableInfo> resolutions = new IdentityHashMap<>();
+
+    public SymbolTable() {
+        scopes.push(new HashMap<>());
     }
 
-    private final Map<String, VariableInfo> table = new HashMap<>();
+    public void enterScope() {
+        scopes.push(new HashMap<>());
+    }
 
-    public void declare(String name, Type type) throws TypeException {
-        if (table.containsKey(name)) {
+    public void exitScope() {
+        scopes.pop();
+    }
+
+    public VariableInfo declare(String name, Type type) throws TypeException {
+        if (scopes.peek().containsKey(name)) {
             throw new TypeException("Variable '" + name + "' is already declared.");
         }
-        table.put(name, new VariableInfo(type));
+        VariableInfo info = new VariableInfo(type, runtimeName(name));
+        scopes.peek().put(name, info);
+        return info;
+    }
+
+    /** Declares a variable in the current scope and records the resolution. */
+    public Type declare(Token id, Type type) throws TypeException {
+        VariableInfo info = declare(id.getText(), type);
+        resolutions.put(id, info);
+        return info.type;
+    }
+
+    /** Resolves a use of an identifier and records it for the code generator. */
+    public Type reference(Token id) throws TypeException {
+        VariableInfo info = resolve(id.getText());
+        resolutions.put(id, info);
+        return info.type;
+    }
+
+    /** Returns what the type checker resolved this identifier occurrence to. */
+    public VariableInfo resolved(Token id) {
+        VariableInfo info = resolutions.get(id);
+        if (info == null) {
+            throw new IllegalStateException("Identifier was never resolved: " + id.getText());
+        }
+        return info;
     }
 
     public Type getType(String name) throws TypeException {
-        VariableInfo info = table.get(name);
-        if (info == null) {
-            throw new TypeException("Variable '" + name + "' is not declared.");
+        return resolve(name).type;
+    }
+
+    public Object getValue(String name) throws TypeException {
+        return resolve(name).value;
+    }
+
+    public void setValue(String name, Object value) throws TypeException {
+        resolve(name).value = value;
+    }
+
+    private VariableInfo resolve(String name) throws TypeException {
+        for (Map<String, VariableInfo> scope : scopes) {
+            VariableInfo info = scope.get(name);
+            if (info != null) {
+                return info;
+            }
         }
-        return info.type;
+        throw new TypeException("Variable '" + name + "' is not declared.");
+    }
+
+    // The first declaration of a name keeps it; later ones in other scopes get
+    // a numbered variant. The dot cannot appear in source identifiers, so the
+    // generated names never collide with user variables.
+    private String runtimeName(String name) {
+        Integer used = nameCounters.get(name);
+        if (used == null) {
+            nameCounters.put(name, 1);
+            return name;
+        }
+        nameCounters.put(name, used + 1);
+        return name + "." + used;
     }
 
     public Type getExprType(ParserRuleContext ctx) {
         if (ctx instanceof cz.university.LanguageParser.IdExprContext idCtx) {
-            String name = idCtx.IDENTIFIER().getText();
-            try {
-                return getType(name);
-            } catch (TypeException e) {
-                throw new RuntimeException(e);
-            }
+            return resolved(idCtx.IDENTIFIER().getSymbol()).type;
         }
         if (ctx instanceof cz.university.LanguageParser.IntExprContext) return Type.INT;
         if (ctx instanceof cz.university.LanguageParser.FloatExprContext) return Type.FLOAT;
@@ -91,16 +159,11 @@ public class SymbolTable {
         }
 
         if (ctx instanceof cz.university.LanguageParser.AssignExprContext assignCtx) {
-            String name = assignCtx.left.getText();
-            try {
-                return getType(name);
-            } catch (TypeException e) {
-                throw new RuntimeException(e);
-            }
+            return resolved(assignCtx.left).type;
         }
 
-        if (ctx instanceof cz.university.LanguageParser.EqualityExprContext eqCtx
-                || ctx instanceof cz.university.LanguageParser.RelationalExprContext relCtx
+        if (ctx instanceof cz.university.LanguageParser.EqualityExprContext
+                || ctx instanceof cz.university.LanguageParser.RelationalExprContext
                 || ctx instanceof cz.university.LanguageParser.AndExprContext
                 || ctx instanceof cz.university.LanguageParser.OrExprContext
                 || ctx instanceof cz.university.LanguageParser.NotExprContext) {
@@ -108,31 +171,5 @@ public class SymbolTable {
         }
 
         throw new RuntimeException("Cannot statically infer type of expression: " + ctx.getText());
-    }
-
-
-
-    public Object getValue(String name) throws TypeException {
-        VariableInfo info = table.get(name);
-        if (info == null) {
-            throw new TypeException("Variable '" + name + "' is not declared.");
-        }
-        return info.value;
-    }
-
-    public void setValue(String name, Object value) throws TypeException {
-        VariableInfo info = table.get(name);
-        if (info == null) {
-            throw new TypeException("Variable '" + name + "' is not declared.");
-        }
-        info.value = value;
-    }
-
-    public void define(String name, Type type) {
-        table.put(name, new VariableInfo(type));
-    }
-
-    public boolean contains(String name) {
-        return table.containsKey(name);
     }
 }

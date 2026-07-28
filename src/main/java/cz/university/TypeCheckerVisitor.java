@@ -25,7 +25,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         SymbolTable.Type declaredType = getTypeFromKeyword(ctx.primitiveType().getText());
         for (var id : ctx.variableList().IDENTIFIER()) {
             try {
-                symbolTable.declare(id.getText(), declaredType);
+                symbolTable.declare(id.getSymbol(), declaredType);
             } catch (TypeException e) {
                 typeError(id.getSymbol(), e.getMessage());
             }
@@ -73,7 +73,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     @Override
     public SymbolTable.Type visitIdExpr(cz.university.LanguageParser.IdExprContext ctx) {
         try {
-            return symbolTable.getType(ctx.IDENTIFIER().getText());
+            return symbolTable.reference(ctx.getStart());
         } catch (TypeException e) {
             reportUndeclared(ctx.getStart(), ctx.IDENTIFIER().getText(), e);
             return null;
@@ -196,7 +196,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         for (var id : ctx.identifierList().IDENTIFIER()) {
             String name = id.getText();
             try {
-                SymbolTable.Type varType = symbolTable.getType(name);
+                SymbolTable.Type varType = symbolTable.reference(id.getSymbol());
                 if (varType != SymbolTable.Type.INT &&
                         varType != SymbolTable.Type.FLOAT &&
                         varType != SymbolTable.Type.BOOL &&
@@ -226,9 +226,9 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
             Token opToken = (Token) ctx.getChild(1).getPayload();
             typeError(opToken, "Condition in if statement must be bool, got " + conditionType + ".");
         }
-        visit(ctx.statement(0)); // if-branch
+        visitBody(ctx.statement(0)); // if-branch
         if (ctx.statement().size() > 1) {
-            visit(ctx.statement(1)); // else-branch (if exist)
+            visitBody(ctx.statement(1)); // else-branch (if exist)
         }
         return null;
     }
@@ -240,16 +240,26 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
             Token opToken = (Token) ctx.getChild(1).getPayload();
             typeError(opToken, "Condition in while loop must be bool, got " + conditionType + ".");
         }
-        visit(ctx.statement());
+        visitBody(ctx.statement());
         return null;
     }
 
     @Override
     public SymbolTable.Type visitBlockStatement(cz.university.LanguageParser.BlockStatementContext ctx) {
+        symbolTable.enterScope();
         for (var stmt : ctx.statement()) {
             visit(stmt);
         }
+        symbolTable.exitScope();
         return null;
+    }
+
+    // The body of a control statement is its own scope even without braces,
+    // so a declaration used as the body cannot leak into the surrounding one.
+    private void visitBody(cz.university.LanguageParser.StatementContext body) {
+        symbolTable.enterScope();
+        visit(body);
+        symbolTable.exitScope();
     }
 
 
@@ -320,7 +330,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
             checkHeaderAssignment(ctx.forUpdate().IDENTIFIER(), ctx.forUpdate().expr(), "for-update");
         }
 
-        visit(ctx.statement());
+        visitBody(ctx.statement());
 
         return null;
     }
@@ -330,7 +340,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         String varName = ctx.left.getText();
 
         try {
-            SymbolTable.Type varType = symbolTable.getType(varName);
+            SymbolTable.Type varType = symbolTable.reference(ctx.left);
             SymbolTable.Type valueType = visit(ctx.right);
 
             // A null type means the right-hand side already produced an error.
@@ -380,7 +390,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
     private void checkHeaderAssignment(TerminalNode id, cz.university.LanguageParser.ExprContext expr, String clause) {
         SymbolTable.Type varType = null;
         try {
-            varType = symbolTable.getType(id.getText());
+            varType = symbolTable.reference(id.getSymbol());
         } catch (TypeException e) {
             reportUndeclared(id.getSymbol(), id.getText(), e);
         }

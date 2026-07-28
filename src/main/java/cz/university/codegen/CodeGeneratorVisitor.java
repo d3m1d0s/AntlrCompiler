@@ -2,7 +2,6 @@ package cz.university.codegen;
 
 import cz.university.StringEscapes;
 import cz.university.SymbolTable;
-import cz.university.TypeException;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
@@ -31,22 +30,11 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
     @Override
     public SymbolTable.Type visitDeclaration(cz.university.LanguageParser.DeclarationContext ctx) {
-        String typeText = ctx.primitiveType().getText();
-        SymbolTable.Type type = switch (typeText) {
-            case "int" -> SymbolTable.Type.INT;
-            case "float" -> SymbolTable.Type.FLOAT;
-            case "bool" -> SymbolTable.Type.BOOL;
-            case "string" -> SymbolTable.Type.STRING;
-            case "file" -> SymbolTable.Type.FILE;
-            default -> throw new RuntimeException("Unsupported type: " + typeText);
-        };
-
         for (TerminalNode id : ctx.variableList().IDENTIFIER()) {
-            String name = id.getText();
-            symbolTable.define(name, type);
+            SymbolTable.VariableInfo variable = symbolTable.resolved(id.getSymbol());
+            String name = variable.runtimeName;
 
-
-            switch (type) {
+            switch (variable.type) {
                 case INT -> {
                     instructions.add(new Instruction(Instruction.OpCode.PUSH_I, "0"));
                     instructions.add(new Instruction(Instruction.OpCode.SAVE_I, name));
@@ -65,7 +53,6 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
                 }
                 case FILE -> {
                 }
-
             }
         }
 
@@ -82,15 +69,9 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
 
     @Override
     public SymbolTable.Type visitIdExpr(cz.university.LanguageParser.IdExprContext ctx) {
-        String name = ctx.IDENTIFIER().getText();
-        SymbolTable.Type type = null;
-        try {
-            type = symbolTable.getType(name);
-        } catch (TypeException e) {
-            throw new RuntimeException(e);
-        }
-        instructions.add(new Instruction(Instruction.OpCode.LOAD, name));
-        return type;
+        SymbolTable.VariableInfo variable = symbolTable.resolved(ctx.IDENTIFIER().getSymbol());
+        instructions.add(new Instruction(Instruction.OpCode.LOAD, variable.runtimeName));
+        return variable.type;
     }
 
     @Override
@@ -330,24 +311,16 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     @Override
     public SymbolTable.Type visitReadStatement(cz.university.LanguageParser.ReadStatementContext ctx) {
         for (var id : ctx.identifierList().IDENTIFIER()) {
-            String name = id.getText();
-            try {
-                SymbolTable.Type varType = symbolTable.getType(name);
-                switch (varType) {
-                    case INT -> instructions.add(new Instruction(Instruction.OpCode.READ_I));
-                    case FLOAT -> instructions.add(new Instruction(Instruction.OpCode.READ_F));
-                    case BOOL -> instructions.add(new Instruction(Instruction.OpCode.READ_B));
-                    case STRING -> instructions.add(new Instruction(Instruction.OpCode.READ_S));
-                }
+            SymbolTable.VariableInfo variable = symbolTable.resolved(id.getSymbol());
 
-                switch (varType) {
-                    case INT -> instructions.add(new Instruction(Instruction.OpCode.SAVE_I, name));
-                    case FLOAT -> instructions.add(new Instruction(Instruction.OpCode.SAVE_F, name));
-                    case BOOL -> instructions.add(new Instruction(Instruction.OpCode.SAVE_B, name));
-                    case STRING -> instructions.add(new Instruction(Instruction.OpCode.SAVE_S, name));
-                }
-            } catch (TypeException e) {
+            switch (variable.type) {
+                case INT -> instructions.add(new Instruction(Instruction.OpCode.READ_I));
+                case FLOAT -> instructions.add(new Instruction(Instruction.OpCode.READ_F));
+                case BOOL -> instructions.add(new Instruction(Instruction.OpCode.READ_B));
+                case STRING -> instructions.add(new Instruction(Instruction.OpCode.READ_S));
             }
+
+            addSaveInstruction(variable.type, variable.runtimeName);
         }
         return null;
     }
@@ -403,7 +376,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         String endLabel = nextLabel();
 
         if (ctx.forInit() != null && ctx.forInit().getChildCount() > 0) {
-            generateHeaderAssignment(ctx.forInit().IDENTIFIER().getText(), ctx.forInit().expr());
+            generateHeaderAssignment(ctx.forInit().IDENTIFIER(), ctx.forInit().expr());
         }
 
         instructions.add(new Instruction(Instruction.OpCode.LABEL, startLabel));
@@ -416,7 +389,7 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
         visit(ctx.statement());
 
         if (ctx.forUpdate() != null && ctx.forUpdate().getChildCount() > 0) {
-            generateHeaderAssignment(ctx.forUpdate().IDENTIFIER().getText(), ctx.forUpdate().expr());
+            generateHeaderAssignment(ctx.forUpdate().IDENTIFIER(), ctx.forUpdate().expr());
         }
 
         instructions.add(new Instruction(Instruction.OpCode.JMP, startLabel));
@@ -442,33 +415,27 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     public SymbolTable.Type visitAssignExpr(cz.university.LanguageParser.AssignExprContext ctx) {
         SymbolTable.Type valueType = visit(ctx.right);
 
-        String varName = ctx.left.getText();
-        SymbolTable.Type varType;
-        try {
-            varType = symbolTable.getType(varName);
-        } catch (TypeException e) {
-            throw new RuntimeException(e);
-        }
+        SymbolTable.VariableInfo variable = symbolTable.resolved(ctx.left);
 
-        if (varType == SymbolTable.Type.FLOAT && valueType == SymbolTable.Type.INT) {
+        if (variable.type == SymbolTable.Type.FLOAT && valueType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
         // Assigning a plain string to a file variable opens the named file in
         // the default append mode.
-        if (varType == SymbolTable.Type.FILE && valueType == SymbolTable.Type.STRING) {
+        if (variable.type == SymbolTable.Type.FILE && valueType == SymbolTable.Type.STRING) {
             instructions.add(new Instruction(Instruction.OpCode.PUSH_S, "a"));
             instructions.add(new Instruction(Instruction.OpCode.FOPEN));
         }
 
-        addSaveInstruction(varType, varName);
+        addSaveInstruction(variable.type, variable.runtimeName);
 
         // An assignment is an expression, so its value has to stay on the stack
         // for the surrounding expression. The stack machine has no dup, hence
         // the reload. Statement level discards it again with a pop.
-        instructions.add(new Instruction(Instruction.OpCode.LOAD, varName));
+        instructions.add(new Instruction(Instruction.OpCode.LOAD, variable.runtimeName));
 
-        return varType;
+        return variable.type;
     }
 
     @Override
@@ -524,20 +491,15 @@ public class CodeGeneratorVisitor extends cz.university.LanguageBaseVisitor<Symb
     }
 
 
-    private void generateHeaderAssignment(String name, cz.university.LanguageParser.ExprContext expr) {
-        SymbolTable.Type varType;
-        try {
-            varType = symbolTable.getType(name);
-        } catch (TypeException e) {
-            throw new RuntimeException(e);
-        }
+    private void generateHeaderAssignment(TerminalNode id, cz.university.LanguageParser.ExprContext expr) {
+        SymbolTable.VariableInfo variable = symbolTable.resolved(id.getSymbol());
 
         SymbolTable.Type valueType = visit(expr);
-        if (varType == SymbolTable.Type.FLOAT && valueType == SymbolTable.Type.INT) {
+        if (variable.type == SymbolTable.Type.FLOAT && valueType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        addSaveInstruction(varType, name);
+        addSaveInstruction(variable.type, variable.runtimeName);
     }
 
     private void addSaveInstruction(SymbolTable.Type type, String name) {

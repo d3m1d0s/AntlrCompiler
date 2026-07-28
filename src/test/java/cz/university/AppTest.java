@@ -1557,6 +1557,96 @@ public class AppTest {
     }
 
     @Test
+    public void testSiblingBlocksMayReuseAName() {
+        assertEquals(List.of(), typeErrors("{ int x; }\n{ int x; }\n"));
+    }
+
+    @Test
+    public void testInnerDeclarationShadowsOuter() {
+        assertEquals(List.of(), typeErrors("int x;\n{ int x; }\n"));
+    }
+
+    @Test
+    public void testRedeclarationInSameScopeIsStillAnError() {
+        List<String> errors = typeErrors("int x;\n{ int q; int q; }\n");
+
+        assertEquals(List.of("2,13: Variable 'q' is already declared."), errors);
+    }
+
+    @Test
+    public void testBlockLocalVariableIsInvisibleOutside() {
+        List<String> errors = typeErrors("{ int y; }\nwrite y;\n");
+
+        assertEquals(List.of("2,6: Variable 'y' is not declared."), errors);
+    }
+
+    @Test
+    public void testBranchLocalVariableIsInvisibleOutside() {
+        List<String> errors = typeErrors("""
+        int c;
+        if (c == 0) { int z; z = 5; }
+        write z;
+        """);
+
+        assertEquals(List.of("3,6: Variable 'z' is not declared."), errors);
+    }
+
+    @Test
+    public void testShadowedVariablesGetDistinctRuntimeNames() {
+        String input = """
+        int x;
+        { int x; }
+        """;
+
+        List<Instruction> instr = generate(input);
+
+        List<String> expected = List.of(
+                "push I 0", "save x",
+                "push I 0", "save x.1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testShadowingKeepsValuesSeparate() throws IOException {
+        Path src = sourceFile("cli-shadow.lang", """
+            int x;
+            x = 1;
+            {
+                int x;
+                x = 2;
+                write x;
+            }
+            write x;
+            """);
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals(List.of("2", "1"), r.stdout().lines().toList());
+    }
+
+    @Test
+    public void testLoopBodyDeclarationIsFreshEachIteration() throws IOException {
+        Path src = sourceFile("cli-loopvar.lang", """
+            int i;
+            i = 0;
+            while (i < 2) {
+                int acc;
+                acc = acc + 10;
+                write acc;
+                i = i + 1;
+            }
+            """);
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals(List.of("10", "10"), r.stdout().lines().toList());
+    }
+
+    @Test
     public void testFloatValuesHaveDoublePrecision() throws IOException {
         Path src = sourceFile("cli-double.lang", """
             write 1.0 / 3.0;
