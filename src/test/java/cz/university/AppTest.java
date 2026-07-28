@@ -61,6 +61,20 @@ public class AppTest {
         return file;
     }
 
+    private int syntaxErrors(String source) {
+        CharStream input = CharStreams.fromString(source);
+        cz.university.LanguageLexer lexer = new cz.university.LanguageLexer(input);
+        VerboseListener listener = new VerboseListener();
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(listener);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        cz.university.LanguageParser parser = new cz.university.LanguageParser(tokens);
+        parser.removeErrorListeners();
+        parser.addErrorListener(listener);
+        parser.program();
+        return listener.getErrorCount();
+    }
+
     private List<String> typeErrors(String source) {
         CharStream input = CharStreams.fromString(source);
         cz.university.LanguageLexer lexer = new cz.university.LanguageLexer(input);
@@ -1269,6 +1283,29 @@ public class AppTest {
         assertTrue("unexpected message: " + e.getMessage(),
                 e.getMessage().startsWith("Failed to open file:"));
         assertNotNull("I/O failures must keep their cause", e.getCause());
+    }
+
+    @Test
+    public void testSyntaxErrorIsCountedAndDoesNotKillTheProcess() {
+        System.out.println("---- testSyntaxErrorIsCountedAndDoesNotKillTheProcess ----");
+        // The listener used to call System.exit on the first error; getting a
+        // count back at all proves reporting no longer terminates the JVM.
+        assertTrue(syntaxErrors("int a\n") > 0);
+        assertEquals(0, syntaxErrors("int a;\n"));
+    }
+
+    @Test
+    public void testLexerErrorsAreCounted() {
+        System.out.println("---- testLexerErrorsAreCounted ----");
+        // Characters the lexer cannot tokenize must count as syntax errors;
+        // they used to slip through and the program compiled and ran anyway.
+        assertEquals(2, syntaxErrors("@ $\n"));
+    }
+
+    @Test
+    public void testMultipleSyntaxErrorsAreReported() {
+        System.out.println("---- testMultipleSyntaxErrorsAreReported ----");
+        assertTrue(syntaxErrors("int a\nint b\n") >= 2);
     }
 
     @Test

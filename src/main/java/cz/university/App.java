@@ -23,10 +23,18 @@ public class App {
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         cz.university.LanguageParser parser = new cz.university.LanguageParser(tokens);
 
+        VerboseListener errorListener = new VerboseListener();
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(errorListener);
         parser.removeErrorListeners();
-        parser.addErrorListener(new VerboseListener());
+        parser.addErrorListener(errorListener);
 
         ParseTree tree = parser.program(); // start rule
+
+        if (errorListener.getErrorCount() > 0) {
+            System.err.println("Aborted due to syntax errors.");
+            System.exit(1);
+        }
 
         TypeCheckerVisitor checker = new TypeCheckerVisitor();
         checker.visit(tree);
