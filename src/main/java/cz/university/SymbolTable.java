@@ -65,6 +65,13 @@ public class SymbolTable {
         if (ctx instanceof cz.university.LanguageParser.ParenExprContext parenCtx) {
             return getExprType(parenCtx.expr(), line);
         }
+        if (ctx instanceof cz.university.LanguageParser.UnaryMinusExprContext unaryCtx) {
+            return getExprType(unaryCtx.expr(), line);
+        }
+        if (ctx instanceof cz.university.LanguageParser.FileOpenExprContext
+                || ctx instanceof cz.university.LanguageParser.FileAppendExprContext) {
+            return Type.FILE;
+        }
 
         if (ctx instanceof cz.university.LanguageParser.AdditiveExprContext addCtx) {
             Type left = getExprType(addCtx.left, line);

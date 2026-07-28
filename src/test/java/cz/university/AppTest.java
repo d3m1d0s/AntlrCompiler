@@ -649,6 +649,62 @@ public class AppTest {
     }
 
     @Test
+    public void testUnaryMinusAsBinaryOperand() {
+        System.out.println("---- testUnaryMinusAsBinaryOperand ----");
+        String input = """
+        write 2 * -3;
+        """;
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push I 2", "push I 3", "uminus I", "mul I", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testUnaryMinusOperandWithFloatPromotion() {
+        System.out.println("---- testUnaryMinusOperandWithFloatPromotion ----");
+        String input = """
+        write 1.5 + -1;
+        """;
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push F 1.5", "push I 1", "uminus I", "itof", "add F", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testUnaryMinusInAssignment() {
+        System.out.println("---- testUnaryMinusInAssignment ----");
+        String input = """
+        int a;
+        a = 1 + -1;
+        """;
+        List<Instruction> instr = generate(input);
+        instr.forEach(System.out::println);
+
+        List<String> expected = List.of(
+                "push I 0", "save a",
+                "push I 1", "push I 1", "uminus I", "add I", "save a", "load a", "pop"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
     public void testChainAssignment() {
         System.out.println("---- testChainAssignment ----");
         String input = """
