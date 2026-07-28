@@ -417,6 +417,73 @@ public class AppTest {
     }
 
     @Test
+    public void testEqualBools() {
+        String input = """
+        bool a;
+        bool b;
+        bool r;
+        r = a == b;
+        """;
+
+        List<Instruction> instr = generate(input);
+
+        List<String> expected = List.of(
+                "push B false", "save a",
+                "push B false", "save b",
+                "push B false", "save r",
+
+                "load a", "load b", "eq B", "save r", "load r", "pop"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testNotEqualBools() {
+        String input = """
+        bool a;
+        bool r;
+        r = a != true;
+        """;
+
+        List<Instruction> instr = generate(input);
+
+        List<String> expected = List.of(
+                "push B false", "save a",
+                "push B false", "save r",
+
+                "load a", "push B true", "eq B", "not", "save r", "load r", "pop"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testFileEqualityIsStillRejected() {
+        List<String> errors = typeErrors("""
+        file f;
+        file g;
+        write f == g;
+        """);
+
+        assertEquals(List.of("3,8: Invalid types for equality: FILE, FILE"), errors);
+    }
+
+    @Test
+    public void testBoolEqualityRunsEndToEnd() throws IOException {
+        Path src = sourceFile("cli-booleq.lang",
+                "write true == false;\nwrite true != false;\nbool b;\nwrite b == false;\n");
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals(List.of("false", "true", "true"), r.stdout().lines().toList());
+    }
+
+    @Test
     public void testLessThanInt() {
         String input = """
         int a;

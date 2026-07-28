@@ -162,9 +162,8 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
             return SymbolTable.Type.BOOL;
         }
 
-        // int == int, float == float, string == string -> OK
-        if ((left == right) &&
-                (left == SymbolTable.Type.INT || left == SymbolTable.Type.FLOAT || left == SymbolTable.Type.STRING)) {
+        // same-type comparison works for every value type, just not for files
+        if (left == right && left != SymbolTable.Type.FILE) {
             return SymbolTable.Type.BOOL;
         }
 
