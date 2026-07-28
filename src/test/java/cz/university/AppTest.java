@@ -33,6 +33,18 @@ public class AppTest {
         return list;
     }
 
+    private List<String> typeErrors(String source) {
+        CharStream input = CharStreams.fromString(source);
+        cz.university.LanguageLexer lexer = new cz.university.LanguageLexer(input);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        cz.university.LanguageParser parser = new cz.university.LanguageParser(tokens);
+        ParseTree tree = parser.program();
+
+        TypeCheckerVisitor checker = new TypeCheckerVisitor();
+        checker.visit(tree);
+        return checker.getErrors();
+    }
+
     @Test
     public void testInitialValues() throws TypeException {
         SymbolTable st = new SymbolTable();
@@ -758,6 +770,39 @@ public class AppTest {
         for (int i = 0; i < expected.size(); i++) {
             assertEquals(expected.get(i), instr.get(i).toString());
         }
+    }
+
+    @Test
+    public void testNotOnNonBoolIsReportedAsTypeError() {
+        System.out.println("---- testNotOnNonBoolIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("write !5;\n");
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("1,6: Logical '!' requires bool operand. Got: INT", errors.get(0));
+    }
+
+    @Test
+    public void testUnaryMinusOnStringIsReportedAsTypeError() {
+        System.out.println("---- testUnaryMinusOnStringIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("write -\"abc\";\n");
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("1,6: Unary minus requires int or float. Got: STRING", errors.get(0));
+    }
+
+    @Test
+    public void testReadIntoFileVariableIsReportedAsTypeError() {
+        System.out.println("---- testReadIntoFileVariableIsReportedAsTypeError ----");
+        List<String> errors = typeErrors("""
+        file f;
+        read f;
+        """);
+        errors.forEach(System.out::println);
+
+        assertEquals(1, errors.size());
+        assertEquals("2,5: Variable 'f' has unsupported type for read: FILE", errors.get(0));
     }
 
     @Test

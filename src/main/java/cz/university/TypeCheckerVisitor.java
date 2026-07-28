@@ -195,8 +195,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
                         varType != SymbolTable.Type.FLOAT &&
                         varType != SymbolTable.Type.BOOL &&
                         varType != SymbolTable.Type.STRING) {
-                    Token opToken = (Token) ctx.getChild(1).getPayload();
-                    typeError(opToken, "Variable '" + name + "' has unsupported type for read: " + varType);
+                    typeError(id.getSymbol(), "Variable '" + name + "' has unsupported type for read: " + varType);
                 }
             } catch (TypeException e) {
                 errors.add(e.getMessage());
@@ -277,8 +276,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
         if (type == SymbolTable.Type.BOOL) {
             return SymbolTable.Type.BOOL;
         }
-        Token opToken = (Token) ctx.getChild(1).getPayload();
-        typeError(opToken, "Logical '!' requires bool operand. Got: " + type);
+        typeError(ctx.op, "Logical '!' requires bool operand. Got: " + type);
         return null;
     }
 
@@ -290,8 +288,7 @@ public class TypeCheckerVisitor extends cz.university.LanguageBaseVisitor<Symbol
             return type;
         }
 
-        Token opToken = (Token) ctx.getChild(1).getPayload();
-        typeError(opToken, "Unary minus requires int or float. Got: " + type);
+        typeError(ctx.op, "Unary minus requires int or float. Got: " + type);
         return null;
     }
 
