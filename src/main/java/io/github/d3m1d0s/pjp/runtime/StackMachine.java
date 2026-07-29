@@ -1,7 +1,5 @@
 package io.github.d3m1d0s.pjp.runtime;
 
-import io.github.d3m1d0s.pjp.runtime.FileHandle;
-
 import io.github.d3m1d0s.pjp.StringEscapes;
 
 import java.io.FileWriter;
@@ -10,6 +8,10 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+/**
+ * Interprets the text instruction listing emitted by the code generator.
+ * The instruction text is pinned by the reference listings in src/test/resources.
+ */
 public class StackMachine {
     private Stack<Object> stack = new Stack<>();
     private Map<String, Object> variables = new HashMap<>();
@@ -25,6 +27,7 @@ public class StackMachine {
             String line = instructions.get(i).trim();
             if (line.isEmpty()) continue;
 
+            // limit 3 keeps a quoted push operand with its spaces intact
             String[] parts = line.split("\\s+", 3);
             String command = parts[0];
 
@@ -77,9 +80,10 @@ public class StackMachine {
                     itof();
                     break;
                 case "label":
-                    // already processed
+                    // already indexed by preprocessLabels
                     break;
                 case "jmp":
+                    // one before the target: the loop increment lands on the label line, a no-op
                     i = jump(parts[1]) - 1;
                     break;
                 case "fjmp":
@@ -97,6 +101,7 @@ public class StackMachine {
         }
     }
 
+    // index labels up front so jumps can target labels defined later
     private void preprocessLabels() {
         for (int i = 0; i < instructions.size(); i++) {
             String line = instructions.get(i).trim();
@@ -118,6 +123,7 @@ public class StackMachine {
                 stack.push(Double.parseDouble(value));
                 break;
             case "S":
+                // generated operands are quoted and escaped; bare ones in hand-written listings pass through
                 if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
                     try {
                         value = StringEscapes.decode(value);
@@ -141,8 +147,7 @@ public class StackMachine {
     }
 
     private void load(String varName) {
-        // Every non-file declaration stores a default value, so in a checked
-        // program only a file variable that was never opened can end up here.
+        // every non-file declaration stores a default, so only an unopened file variable can be missing
         check(variables.containsKey(varName), "Variable '" + varName + "' was never assigned a value");
         stack.push(variables.get(varName));
     }
@@ -187,8 +192,7 @@ public class StackMachine {
             throw new MachineException("Input ended while reading " + typeName);
         }
 
-        // String input is taken verbatim; the other types tolerate surrounding
-        // whitespace but reject anything that is not a value of the type.
+        // string input is verbatim, the other types tolerate surrounding whitespace
         String value = line.trim();
         String invalid = "Invalid " + typeName + " input: \"" + line + "\"";
         switch (type) {
@@ -224,6 +228,7 @@ public class StackMachine {
         Object b = stack.pop();
         Object a = stack.pop();
 
+        // only mod arrives without a type suffix, and it is int-only
         if (type == null) type = "I";
 
         switch (type) {
@@ -245,6 +250,7 @@ public class StackMachine {
                 }
                 break;
             case "F":
+                // widening ints is leniency for hand-written listings, generated code inserts itof
                 double af = (a instanceof Integer) ? (Integer) a : (Double) a;
                 double bf = (b instanceof Integer) ? (Integer) b : (Double) b;
                 switch (op) {
@@ -265,8 +271,6 @@ public class StackMachine {
                 String sb = (String) b;
                 if ("eq".equals(op)) {
                     stack.push(sa.equals(sb));
-                } else if ("concat".equals(op)) {
-                    stack.push(sa + sb);
                 } else {
                     throw new MachineException("Unsupported string operation: " + op);
                 }
@@ -318,6 +322,7 @@ public class StackMachine {
     }
 
     private boolean toBoolean(Object value) {
+        // nonzero ints count as true, a leniency for hand-written listings
         if (value instanceof Integer) {
             return ((Integer) value) != 0;
         } else if (value instanceof Boolean) {
@@ -344,7 +349,8 @@ public class StackMachine {
         if (value instanceof Integer) {
             stack.push(((Integer) value).doubleValue());
         } else {
-            stack.push(value); // already a double
+            // non-ints pass through, generated code only applies itof to ints
+            stack.push(value);
         }
     }
 
@@ -353,6 +359,7 @@ public class StackMachine {
         return labels.get(label);
     }
 
+    // branches when the popped value is false; numbers truncate to int first
     private int fjump(String label, int currentIndex) {
         check(!stack.isEmpty(), "Stack underflow on FJMP");
         Object value = stack.pop();
@@ -394,9 +401,7 @@ public class StackMachine {
         stack.push(new FileHandle(filename));
     }
 
-    // The mode takes effect once, when the file is opened: "w" starts an empty
-    // file, "a" keeps what is already there. Every later append writes to the
-    // end regardless of the mode.
+    // the mode applies only at open: "w" truncates, "a" keeps the existing content
     private void applyMode(String filename, String mode) {
         boolean keepContent;
         switch (mode) {
@@ -406,7 +411,7 @@ public class StackMachine {
         }
 
         try (FileWriter fw = new FileWriter(filename, StandardCharsets.UTF_8, keepContent)) {
-            // Opening the file creates it when missing and truncates it in "w".
+            // the empty body is the point: opening creates the file and truncates it in "w"
         } catch (IOException e) {
             throw new MachineException("Failed to open file: " + filename, e);
         }
@@ -436,7 +441,7 @@ public class StackMachine {
             throw new MachineException("Failed to append to file: " + fileHandle.getName(), e);
         }
 
-        // The append yields the file again, so appends compose like expressions.
+        // the file goes back on the stack so appends chain like expressions
         stack.push(fileHandle);
     }
 

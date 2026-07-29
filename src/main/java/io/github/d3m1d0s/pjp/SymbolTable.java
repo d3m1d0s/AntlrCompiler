@@ -9,13 +9,19 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+/**
+ * Scope stack for the type checker. Also records how each identifier
+ * occurrence resolved, because the code generator runs after the scopes are
+ * closed and cannot resolve names itself.
+ */
 public class SymbolTable {
     public enum Type { INT, FLOAT, BOOL, STRING, FILE }
 
     public static class VariableInfo {
         public final Type type;
-        /** Name used in generated instructions, unique across all scopes. */
+        // name used in generated instructions, unique across all scopes
         public final String runtimeName;
+        // holds only the type default, execution state lives in the stack machine
         public Object value;
 
         public VariableInfo(Type type, String runtimeName) {
@@ -38,12 +44,11 @@ public class SymbolTable {
     private final Deque<Map<String, VariableInfo>> scopes = new ArrayDeque<>();
     private final Map<String, Integer> nameCounters = new HashMap<>();
 
-    // Identifier occurrences resolved during type checking. The code generator
-    // runs after the scopes have been closed again, so it cannot resolve names
-    // itself; it looks up what the checker recorded here instead.
+    // keyed by token identity: every occurrence of a name is its own entry
     private final Map<Token, VariableInfo> resolutions = new IdentityHashMap<>();
 
     public SymbolTable() {
+        // the global scope, never popped
         scopes.push(new HashMap<>());
     }
 
@@ -95,10 +100,6 @@ public class SymbolTable {
         return resolve(name).value;
     }
 
-    public void setValue(String name, Object value) throws TypeException {
-        resolve(name).value = value;
-    }
-
     private VariableInfo resolve(String name) throws TypeException {
         for (Map<String, VariableInfo> scope : scopes) {
             VariableInfo info = scope.get(name);
@@ -109,9 +110,7 @@ public class SymbolTable {
         throw new TypeException("Variable '" + name + "' is not declared.");
     }
 
-    // The first declaration of a name keeps it; later ones in other scopes get
-    // a numbered variant. The dot cannot appear in source identifiers, so the
-    // generated names never collide with user variables.
+    // later declarations get a dotted suffix; '.' cannot appear in identifiers, so no collisions
     private String runtimeName(String name) {
         Integer used = nameCounters.get(name);
         if (used == null) {
@@ -122,6 +121,11 @@ public class SymbolTable {
         return name + "." + used;
     }
 
+    /**
+     * Re-derives the static type of an expression for the code generator. Assumes
+     * the tree passed type checking, so the throws below signal compiler defects,
+     * not user errors.
+     */
     public Type getExprType(ParserRuleContext ctx) {
         if (ctx instanceof io.github.d3m1d0s.pjp.LanguageParser.IdExprContext idCtx) {
             return resolved(idCtx.IDENTIFIER().getSymbol()).type;

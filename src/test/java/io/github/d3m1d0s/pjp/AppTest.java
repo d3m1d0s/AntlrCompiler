@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 public class AppTest {
 
+    // compiles source to instructions, failing the test on any type error
     private List<Instruction> generate(String source) {
         CharStream input = CharStreams.fromString(source);
         io.github.d3m1d0s.pjp.LanguageLexer lexer = new io.github.d3m1d0s.pjp.LanguageLexer(input);
@@ -36,8 +37,7 @@ public class AppTest {
 
         CodeGeneratorVisitor generator = new CodeGeneratorVisitor(checker.getSymbolTable());
         generator.visit(tree);
-        List<Instruction> list = generator.getInstructions();
-        return list;
+        return generator.getInstructions();
     }
 
     private void run(String source) {
@@ -57,7 +57,7 @@ public class AppTest {
 
     private record AppResult(int exitCode, String stdout, String stderr) {}
 
-    /** Runs the App driver with captured streams, never touching the real ones. */
+    // runs the App driver with System.in/out/err swapped for buffers
     private AppResult runApp(String stdin, String... args) {
         PrintStream originalOut = System.out;
         PrintStream originalErr = System.err;
@@ -83,7 +83,7 @@ public class AppTest {
         return file;
     }
 
-    /** Returns a fresh path under target/, usable inside a program as a string literal. */
+    // fresh path under target/, callers flip backslashes before embedding it in a program literal
     private Path scratchFile(String name) throws IOException {
         Path dir = Path.of("target", "file-tests");
         Files.createDirectories(dir);
@@ -92,7 +92,7 @@ public class AppTest {
         return file;
     }
 
-    /** Counts syntax errors the way App wires them up, swallowing the listener's printing. */
+    // counts syntax errors with the same listener wiring as App, printing swallowed
     private int syntaxErrors(String source) {
         PrintStream originalErr = System.err;
         System.setErr(new PrintStream(OutputStream.nullOutputStream()));
@@ -464,6 +464,7 @@ public class AppTest {
 
     @Test
     public void testFileEqualityIsStillRejected() {
+        // equality is defined for bools but must not extend to FILE operands
         List<String> errors = typeErrors("""
         file f;
         file g;
@@ -1176,17 +1177,12 @@ public class AppTest {
         List<Instruction> instr = generate(input);
 
         List<String> expected = List.of(
-
-                // f = open("output.txt", "a")
                 "push S \"output.txt\"", "push S \"a\"", "fopen", "save f", "load f", "pop",
 
-                // f << "Line 1" << 42
                 "load f", "push S \"Line 1\"", "push I 42", "fappend 2", "pop",
 
-                // f = open("output.txt", "w")
                 "push S \"output.txt\"", "push S \"w\"", "fopen", "save f", "load f", "pop",
 
-                // f << "Overwrite"
                 "load f", "push S \"Overwrite\"", "fappend 1", "pop"
         );
 
@@ -1234,6 +1230,7 @@ public class AppTest {
 
     @Test
     public void testReadBoolIsStrict() throws IOException {
+        // strict about vocabulary but not case: "yes" is rejected, "TRUE" parses
         MachineException e = assertThrows(MachineException.class,
                 () -> runWithInput("bool b;\nread b;\n", "yes\n"));
         assertEquals("Invalid bool input: \"yes\"", e.getMessage());
@@ -1337,9 +1334,7 @@ public class AppTest {
 
     @Test
     public void testEmptyFileNameFailsCleanly() {
-        // A literal empty name in open() is a compile error; via the string
-        // form it is only known at run time and must fail as an open failure,
-        // not as a crash while parsing the push instruction.
+        // unlike open(""), f = "" only surfaces at run time, and must fail as an open failure, not a crash
         MachineException e = assertThrows(MachineException.class, () -> run("""
             file f;
             f = "";
@@ -1351,16 +1346,14 @@ public class AppTest {
 
     @Test
     public void testSyntaxErrorIsCountedAndDoesNotKillTheProcess() {
-        // The listener used to call System.exit on the first error; getting a
-        // count back at all proves reporting no longer terminates the JVM.
+        // the listener must count and report, not System.exit on the first error
         assertTrue(syntaxErrors("int a\n") > 0);
         assertEquals(0, syntaxErrors("int a;\n"));
     }
 
     @Test
     public void testLexerErrorsAreCounted() {
-        // Characters the lexer cannot tokenize must count as syntax errors;
-        // they used to slip through and the program compiled and ran anyway.
+        // each untokenizable character counts as its own syntax error
         assertEquals(2, syntaxErrors("@ $\n"));
     }
 
@@ -1441,8 +1434,7 @@ public class AppTest {
 
     @Test
     public void testMostNegativeIntLiteralIsRejected() {
-        // "-2147483648" is unary minus applied to the literal 2147483648, which
-        // itself does not fit in an int, exactly as in C and Java source.
+        // parsed as unary minus applied to 2147483648, which overflows int (same parse as C and Java)
         List<String> errors = typeErrors("write -2147483648;\n");
 
         assertEquals(1, errors.size());
@@ -1547,8 +1539,7 @@ public class AppTest {
         Files.writeString(leftover, "must survive\n");
         Path opened = scratchFile("opened.txt");
 
-        // A value left on the stack in front of the operands must not be mistaken
-        // for the file name, which would truncate a file the program never opened.
+        // a value left on the stack must not be mistaken for the file name and truncate the wrong file
         new StackMachine().execute(List.of(
                 "push S " + leftover.toString().replace('\\', '/'),
                 "push S " + opened.toString().replace('\\', '/'),
@@ -1711,6 +1702,7 @@ public class AppTest {
             write 123456789.5;
             write 3.141592;
             float x;
+            // 16777217 is 2^24 + 1, the first integer a 32-bit float cannot hold
             x = 16777217.0;
             write x;
             """);
@@ -1792,6 +1784,7 @@ public class AppTest {
 
     @Test
     public void testAllInputsAgainstReferenceOutputs() throws IOException {
+        // the course reference listings pin the instruction text line for line
 
         for (int testNum = 1; testNum <= 3; testNum++) {
 
@@ -1801,6 +1794,7 @@ public class AppTest {
             String source = Files.readString(inputPath);
             List<Instruction> instructions = generate(source);
 
+            // the listing goes through a gitignored file so failures leave an inspectable artifact
             Path outPath = Path.of("output_t" + testNum + ".out");
             try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(outPath))) {
                 for (Instruction instr : instructions) {

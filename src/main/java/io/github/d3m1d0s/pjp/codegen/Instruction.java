@@ -2,8 +2,10 @@ package io.github.d3m1d0s.pjp.codegen;
 
 import io.github.d3m1d0s.pjp.StringEscapes;
 
+/** One stack machine instruction: an opcode with an optional operand. */
 public class Instruction {
 
+    // most names follow operation_type: toString splits on '_' to build the text form
     public enum OpCode {
         ADD_I, ADD_F,
         SUB_I, SUB_F,
@@ -48,14 +50,10 @@ public class Instruction {
         this(opCode, null);
     }
 
-    public OpCode getOpCode() {
-        return opCode;
-    }
-
-    public String getOperand() {
-        return operand;
-    }
-
+    /**
+     * Renders the instruction as the line the stack machine parses. For non-file
+     * instructions this text is pinned byte for byte by the reference listings.
+     */
     @Override
     public String toString() {
         switch (opCode) {
@@ -67,15 +65,15 @@ public class Instruction {
             case FJMP:
                 return operand != null ? opCode.name().toLowerCase() + " " + operand : opCode.name().toLowerCase();
 
+            // the N is arity, not a type letter: the machine reads "fappend <count>"
             case FAPPEND_N:
-                return operand != null ? "fappend " + operand : "fappend";
+                return "fappend " + operand;
 
-            // The operand holds the raw value; quote and escape it so the
-            // line based instruction format cannot be broken by its content.
+            // quote and escape the raw value so its content cannot break the line format
             case PUSH_S:
                 return "push S " + StringEscapes.encode(operand);
 
-
+            // save prints without a type suffix: the machine stores by name only
             case SAVE_I:
             case SAVE_F:
             case SAVE_S:
@@ -101,8 +99,4 @@ public class Instruction {
                 ? name.toLowerCase() + " " + operand
                 : name.toLowerCase();
     }
-
-
-
 }
-

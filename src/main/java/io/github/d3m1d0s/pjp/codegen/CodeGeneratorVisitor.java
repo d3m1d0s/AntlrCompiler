@@ -13,12 +13,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Second pass over the type-checked tree: emits the text instruction listing.
+ * Identifiers come from what the checker resolved, since the scopes are
+ * closed by now.
+ */
 public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisitor<SymbolTable.Type> {
 
     private final SymbolTable symbolTable;
     private final List<Instruction> instructions = new ArrayList<>();
+    // one shared counter for all labels: the reference listings pin the numbering
     private int labelCounter = 0;
-
 
     public CodeGeneratorVisitor(SymbolTable symbolTable) {
         this.symbolTable = symbolTable;
@@ -30,6 +35,7 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
 
     @Override
     public SymbolTable.Type visitDeclaration(io.github.d3m1d0s.pjp.LanguageParser.DeclarationContext ctx) {
+        // every non-file declaration stores a default, so only an unopened file variable can be missing at load
         for (TerminalNode id : ctx.variableList().IDENTIFIER()) {
             SymbolTable.VariableInfo variable = symbolTable.resolved(id.getSymbol());
             String name = variable.runtimeName;
@@ -52,6 +58,7 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
                     instructions.add(new Instruction(Instruction.OpCode.SAVE_S, name));
                 }
                 case FILE -> {
+                    // nothing to push: a file becomes loadable only once a handle is saved into it
                 }
             }
         }
@@ -61,11 +68,11 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
 
     @Override
     public SymbolTable.Type visitExpressionStatement(io.github.d3m1d0s.pjp.LanguageParser.ExpressionStatementContext ctx) {
+        // the trailing pop discards the expression value and is pinned by the reference listings
         SymbolTable.Type type = visit(ctx.expr());
         instructions.add(new Instruction(Instruction.OpCode.POP));
         return type;
     }
-
 
     @Override
     public SymbolTable.Type visitIdExpr(io.github.d3m1d0s.pjp.LanguageParser.IdExprContext ctx) {
@@ -108,6 +115,7 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
         var leftExpr = ctx.expr(0);
         var rightExpr = ctx.expr(1);
 
+        // types are needed up front: each int operand takes its itof right after its own code
         SymbolTable.Type leftType = symbolTable.getExprType(leftExpr);
         SymbolTable.Type rightType = symbolTable.getExprType(rightExpr);
 
@@ -127,12 +135,12 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
                 ? SymbolTable.Type.FLOAT
                 : SymbolTable.Type.INT;
 
-        SymbolTable.Type left = visit(leftExpr);
+        visit(leftExpr);
         if (resultType == SymbolTable.Type.FLOAT && leftType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        SymbolTable.Type right = visit(rightExpr);
+        visit(rightExpr);
         if (resultType == SymbolTable.Type.FLOAT && rightType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
@@ -148,7 +156,6 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
         return resultType;
     }
 
-
     @Override
     public SymbolTable.Type visitMultiplicativeExpr(io.github.d3m1d0s.pjp.LanguageParser.MultiplicativeExprContext ctx) {
         var leftExpr = ctx.expr(0);
@@ -161,12 +168,12 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
                 ? SymbolTable.Type.FLOAT
                 : SymbolTable.Type.INT;
 
-        SymbolTable.Type left = visit(leftExpr);
+        visit(leftExpr);
         if (resultType == SymbolTable.Type.FLOAT && leftType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        SymbolTable.Type right = visit(rightExpr);
+        visit(rightExpr);
         if (resultType == SymbolTable.Type.FLOAT && rightType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
@@ -196,12 +203,12 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
 
         boolean floatComparison = (leftType == SymbolTable.Type.FLOAT || rightType == SymbolTable.Type.FLOAT);
 
-        SymbolTable.Type left = visit(leftExpr);
+        visit(leftExpr);
         if (floatComparison && leftType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        SymbolTable.Type right = visit(rightExpr);
+        visit(rightExpr);
         if (floatComparison && rightType == SymbolTable.Type.INT) {
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
@@ -212,7 +219,6 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
         } else if (leftType == rightType) {
             switch (leftType) {
                 case INT -> instructions.add(new Instruction(Instruction.OpCode.EQ_I));
-                case FLOAT -> instructions.add(new Instruction(Instruction.OpCode.EQ_F));
                 case STRING -> instructions.add(new Instruction(Instruction.OpCode.EQ_S));
                 case BOOL -> instructions.add(new Instruction(Instruction.OpCode.EQ_B));
                 default -> throw new RuntimeException("Unsupported EQ type: " + leftType);
@@ -221,6 +227,7 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
             throw new RuntimeException("Type mismatch in equality expression at line " + line);
         }
 
+        // no not-equal opcode: '!=' is an equality test followed by not
         if (op.equals("!=")) {
             instructions.add(new Instruction(Instruction.OpCode.NOT));
         }
@@ -300,10 +307,10 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
             count++;
         }
 
+        // print's operand is the value count, popped and printed in source order
         instructions.add(new Instruction(Instruction.OpCode.PRINT, String.valueOf(count)));
         return null;
     }
-
 
     @Override
     public SymbolTable.Type visitReadStatement(io.github.d3m1d0s.pjp.LanguageParser.ReadStatementContext ctx) {
@@ -329,7 +336,7 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
 
         instructions.add(new Instruction(Instruction.OpCode.LABEL, startLabel));
 
-        SymbolTable.Type conditionType = visit(ctx.expr());
+        visit(ctx.expr());
         instructions.add(new Instruction(Instruction.OpCode.FJMP, endLabel));
 
         visit(ctx.statement());
@@ -346,26 +353,22 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
         String elseLabel = nextLabel();
         String endLabel = nextLabel();
 
-        SymbolTable.Type conditionType = visit(ctx.expr());
+        visit(ctx.expr());
         instructions.add(new Instruction(Instruction.OpCode.FJMP, elseLabel));
 
-        // then
-        visit(ctx.statement(0));
+        visit(ctx.statement(0)); // then-branch
 
         instructions.add(new Instruction(Instruction.OpCode.JMP, endLabel));
         instructions.add(new Instruction(Instruction.OpCode.LABEL, elseLabel));
 
         if (ctx.statement().size() > 1) {
-            // else
-            visit(ctx.statement(1));
+            visit(ctx.statement(1)); // else-branch
         }
 
         instructions.add(new Instruction(Instruction.OpCode.LABEL, endLabel));
 
         return null;
     }
-
-
 
     @Override
     public SymbolTable.Type visitForStatement(io.github.d3m1d0s.pjp.LanguageParser.ForStatementContext ctx) {
@@ -378,6 +381,7 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
 
         instructions.add(new Instruction(Instruction.OpCode.LABEL, startLabel));
 
+        // an empty condition emits no fjmp, so a for without one never exits
         if (ctx.forCond() != null && ctx.forCond().expr() != null) {
             visit(ctx.forCond().expr());
             instructions.add(new Instruction(Instruction.OpCode.FJMP, endLabel));
@@ -418,8 +422,7 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
             instructions.add(new Instruction(Instruction.OpCode.ITOF));
         }
 
-        // Assigning a plain string to a file variable opens the named file in
-        // the default append mode.
+        // a string assigned to a file variable opens that file in append mode
         if (variable.type == SymbolTable.Type.FILE && valueType == SymbolTable.Type.STRING) {
             instructions.add(new Instruction(Instruction.OpCode.PUSH_S, "a"));
             instructions.add(new Instruction(Instruction.OpCode.FOPEN));
@@ -427,14 +430,13 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
 
         addSaveInstruction(variable.type, variable.runtimeName);
 
-        // An assignment is an expression, so its value has to stay on the stack
-        // for the surrounding expression. The stack machine has no dup, hence
-        // the reload. Statement level discards it again with a pop.
+        // no dup in the machine, so reload to leave the assigned value on the stack
         instructions.add(new Instruction(Instruction.OpCode.LOAD, variable.runtimeName));
 
         return variable.type;
     }
 
+    // one fappend per chain, not per '<<': the machine writes one line per fappend
     @Override
     public SymbolTable.Type visitFileAppendExpr(io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext ctx) {
         List<ParserRuleContext> exprs = new ArrayList<>();
@@ -450,6 +452,7 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
             throw new RuntimeException("Left side of << must be FILE");
         }
 
+        // the walk collected them right to left
         Collections.reverse(exprs);
         for (ParserRuleContext arg : exprs) {
             visit(arg);
@@ -475,18 +478,16 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
         return SymbolTable.Type.FILE;
     }
 
-
-
-    private io.github.d3m1d0s.pjp.LanguageParser.ExprContext collectFileAndValues(io.github.d3m1d0s.pjp.LanguageParser.ExprContext expr, List<io.github.d3m1d0s.pjp.LanguageParser.ExprContext> values) {
-        if (expr instanceof io.github.d3m1d0s.pjp.LanguageParser.FileAppendExprContext fae) {
-            values.add(fae.right);
-            return collectFileAndValues(fae.left, values);
-        } else {
-            //it is expr which already contains file
-            return expr;
+    /** Writes the listing, one instruction per line, in the text form the machine executes. */
+    public void saveToFile(String filename) throws IOException {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename, StandardCharsets.UTF_8))) {
+            for (Instruction instr : instructions) {
+                writer.println(instr);
+            }
         }
     }
 
+    // === Helpers ===
 
     private void generateHeaderAssignment(TerminalNode id, io.github.d3m1d0s.pjp.LanguageParser.ExprContext expr) {
         SymbolTable.VariableInfo variable = symbolTable.resolved(id.getSymbol());
@@ -511,14 +512,5 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
 
     private String nextLabel() {
         return String.valueOf(labelCounter++);
-    }
-
-
-    public void saveToFile(String filename) throws IOException {
-        try (PrintWriter writer = new PrintWriter(new FileWriter(filename, StandardCharsets.UTF_8))) {
-            for (Instruction instr : instructions) {
-                writer.println(instr);
-            }
-        }
     }
 }

@@ -12,16 +12,18 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Command-line driver: compiles one source file and runs it on the stack
+ * machine. Exits 0 on success, 1 for bad usage, unreadable input or compile
+ * errors, 2 for runtime errors.
+ */
 public class App {
 
     public static void main(String[] args) {
+        // exit code comes from run() so tests can drive the pipeline without System.exit
         System.exit(run(args));
     }
 
-    /**
-     * Compiles and runs one source file. Returns the process exit code:
-     * 0 on success, 1 for compile errors, 2 for runtime errors.
-     */
     static int run(String[] args) {
         if (args.length != 1) {
             System.err.println("Usage: App <source file>");
@@ -65,7 +67,7 @@ public class App {
         CodeGeneratorVisitor generator = new CodeGeneratorVisitor(checker.getSymbolTable());
         generator.visit(tree);
 
-        // The listing is an artifact for inspection; execution does not depend on it.
+        // the listing is only for inspection, so a failed write is a warning, not an abort
         try {
             generator.saveToFile("output.out");
         } catch (IOException e) {

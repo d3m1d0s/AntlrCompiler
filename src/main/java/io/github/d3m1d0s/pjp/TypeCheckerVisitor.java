@@ -8,6 +8,11 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+/**
+ * Type-checks the parse tree and collects errors. A null visit result means
+ * that subexpression already reported an error; callers propagate it silently
+ * instead of piling on follow-ups.
+ */
 public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisitor<SymbolTable.Type> {
 
     private final SymbolTable symbolTable = new SymbolTable();
@@ -18,7 +23,9 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
         return errors;
     }
 
-    // === Statements ===
+    public SymbolTable getSymbolTable() {
+        return symbolTable;
+    }
 
     @Override
     public SymbolTable.Type visitDeclaration(io.github.d3m1d0s.pjp.LanguageParser.DeclarationContext ctx) {
@@ -38,7 +45,6 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
         return visit(ctx.expr());
     }
 
-    // === Expressions ===
     @Override
     public SymbolTable.Type visitEmptyStatement(io.github.d3m1d0s.pjp.LanguageParser.EmptyStatementContext ctx) {
         return null;
@@ -65,8 +71,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
             return null;
         }
 
-        // can be this:
-        // (fname << 5) << "abc"
+        // returns FILE so appends chain left to right: (f << 5) << "abc"
         return SymbolTable.Type.FILE;
     }
 
@@ -82,6 +87,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
 
     @Override
     public SymbolTable.Type visitIntExpr(io.github.d3m1d0s.pjp.LanguageParser.IntExprContext ctx) {
+        // parseInt doubles as the range check; minus is a separate operator, so -2147483648 is rejected too
         try {
             Integer.parseInt(ctx.getText());
         } catch (NumberFormatException e) {
@@ -102,6 +108,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
 
     @Override
     public SymbolTable.Type visitStringExpr(io.github.d3m1d0s.pjp.LanguageParser.StringExprContext ctx) {
+        // decode only to validate the escapes, the value itself is not needed here
         decodeLiteral(ctx.getStart());
         return SymbolTable.Type.STRING;
     }
@@ -143,6 +150,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
                 Token opToken = (Token) ctx.getChild(1).getPayload();
                 typeError(opToken, "Modulo can be used only with integers.");
             }
+            // even after an error '%' yields INT so checking can continue
             return SymbolTable.Type.INT;
         }
 
@@ -162,7 +170,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
             return SymbolTable.Type.BOOL;
         }
 
-        // same-type comparison works for every value type, just not for files
+        // same-type comparison works for every value type, just not files
         if (left == right && left != SymbolTable.Type.FILE) {
             return SymbolTable.Type.BOOL;
         }
@@ -228,7 +236,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
         }
         visitBody(ctx.statement(0)); // if-branch
         if (ctx.statement().size() > 1) {
-            visitBody(ctx.statement(1)); // else-branch (if exist)
+            visitBody(ctx.statement(1)); // else-branch
         }
         return null;
     }
@@ -254,8 +262,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
         return null;
     }
 
-    // The body of a control statement is its own scope even without braces,
-    // so a declaration used as the body cannot leak into the surrounding one.
+    // a braceless body is still its own scope, so a declaration there cannot leak out
     private void visitBody(io.github.d3m1d0s.pjp.LanguageParser.StatementContext body) {
         symbolTable.enterScope();
         visit(body);
@@ -315,6 +322,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
 
     @Override
     public SymbolTable.Type visitForStatement(io.github.d3m1d0s.pjp.LanguageParser.ForStatementContext ctx) {
+        // empty header clauses still yield a context object, just with no children
         if (ctx.forInit() != null && ctx.forInit().getChildCount() > 0) {
             checkHeaderAssignment(ctx.forInit().IDENTIFIER(), ctx.forInit().expr(), "for-init");
         }
@@ -343,7 +351,6 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
             SymbolTable.Type varType = symbolTable.reference(ctx.left);
             SymbolTable.Type valueType = visit(ctx.right);
 
-            // A null type means the right-hand side already produced an error.
             if (valueType == null) {
                 return null;
             }
@@ -375,7 +382,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
         return SymbolTable.Type.FILE;
     }
 
-    /** Decodes a string token, reporting bad escapes; returns null if the literal is malformed. */
+    // decodes a string token, reporting bad escapes; null if the literal is malformed
     private String decodeLiteral(Token token) {
         try {
             return StringEscapes.decode(token.getText());
@@ -395,6 +402,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
             reportUndeclared(id.getSymbol(), id.getText(), e);
         }
 
+        // visit the value even when the variable is unknown so its own errors still surface
         SymbolTable.Type valueType = visit(expr);
 
         if (varType != null && valueType != null && !isCompatible(varType, valueType)) {
@@ -422,6 +430,7 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
         if (target == SymbolTable.Type.FLOAT && value == SymbolTable.Type.INT) {
             return true;
         }
+        // a string assigned to a file variable opens it: the generator emits fopen in append mode
         if (target == SymbolTable.Type.FILE && value == SymbolTable.Type.STRING) {
             return true;
         }
@@ -437,26 +446,17 @@ public class TypeCheckerVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisito
         throw new RuntimeException("Unknown type: " + keyword);
     }
 
+    // the "line,col: message" shape is pinned by the tests and mirrored by VerboseListener
     private void typeError(Token token, String message) {
         int line = token.getLine();
         int pos = token.getCharPositionInLine();
         errors.add(line + "," + pos + ": " + message);
     }
 
-    // An undeclared variable is reported once per name, so a single missing
-    // declaration does not flood the output at every use site.
+    // report each undeclared name once so one missing declaration doesn't flood every use site
     private void reportUndeclared(Token token, String name, TypeException e) {
         if (reportedUndeclared.add(name)) {
             typeError(token, e.getMessage());
         }
     }
-
-    public SymbolTable getSymbolTable() {
-        return symbolTable;
-    }
-
-
 }
-
-
-
