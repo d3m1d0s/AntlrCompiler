@@ -6,7 +6,7 @@ import io.github.d3m1d0s.pjp.runtime.MachineException;
 import io.github.d3m1d0s.pjp.runtime.StackMachine;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -19,7 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AppTest {
 
@@ -33,7 +33,7 @@ public class AppTest {
 
         TypeCheckerVisitor checker = new TypeCheckerVisitor();
         checker.visit(tree);
-        assertTrue("Type errors: " + checker.getErrors(), checker.getErrors().isEmpty());
+        assertTrue(checker.getErrors().isEmpty(), "Type errors: " + checker.getErrors());
 
         CodeGeneratorVisitor generator = new CodeGeneratorVisitor(checker.getSymbolTable());
         generator.visit(tree);
@@ -148,11 +148,11 @@ public class AppTest {
         }
     }
 
-    @Test(expected = TypeException.class)
+    @Test
     public void testDoubleDeclarationThrowsException() throws TypeException {
         SymbolTable st = new SymbolTable();
         st.declare("x", SymbolTable.Type.INT);
-        st.declare("x", SymbolTable.Type.FLOAT);
+        assertThrows(TypeException.class, () -> st.declare("x", SymbolTable.Type.FLOAT));
     }
 
     @Test
@@ -1388,9 +1388,9 @@ public class AppTest {
             file f;
             f = "";
             """));
-        assertTrue("unexpected message: " + e.getMessage(),
-                e.getMessage().startsWith("Failed to open file:"));
-        assertNotNull("I/O failures must keep their cause", e.getCause());
+        assertTrue(e.getMessage().startsWith("Failed to open file:"),
+                "unexpected message: " + e.getMessage());
+        assertNotNull(e.getCause(), "I/O failures must keep their cause");
     }
 
     @Test
