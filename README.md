@@ -41,31 +41,9 @@ The test suite runs with `mvn test` and also compares the generated listings wit
 
 ## Language
 
-The five types are `int`, `float`, `bool`, `string` and `file`. `int` promotes to `float` automatically and there is no conversion back. Floats have double precision. Integer literals are checked against the 32-bit range at compile time.
+A program is a sequence of statements over the five types `int`, `float`, `bool`, `string` and `file`. Control flow is C-like, blocks have real scopes, assignment is an expression, and `&&` and `||` always evaluate both operands. Files are write only and take one line per `<<` chain.
 
-Statements are declarations (`int a, b;`), expression statements, `read` and `write`, `if` with an optional `else`, `while`, a C-style `for` whose header parts may all be empty, blocks and the empty statement `;`. Blocks have real scopes. A declaration shadows an outer one and disappears with its block, and a braceless body of `if`, `else`, `while` or `for` counts as a block of its own.
-
-Operators, tightest binding first:
-
-- `!` and unary `-` - logical not and numeric negation
-- `* / %` - multiplication, division and remainder (`%` is integer only)
-- `+ - .` - addition, subtraction and string concatenation
-- `< > <= >=` - ordering
-- `== !=` - equality, also for `bool` and `string`
-- `&&` - logical and
-- `||` - logical or
-- `<<` - file append
-- `=` - assignment, an expression that chains to the right
-
-`&&` and `||` always evaluate both operands. Numeric operators other than `%` take `int` and `float` in any combination. Division and modulo by zero are runtime errors, and `float` division is no exception.
-
-String literals stay on one line and understand the `\n`, `\t`, `\r`, `\\` and `\"` escapes. Any other character after a backslash is a compile error.
-
-`read` takes one input line per variable and accepts only `true` and `false` for a `bool`, regardless of case. Invalid input stops the program with a runtime error. `write` prints all its values on one line without separators.
-
-`open` takes two string literals, the file name and the mode. `"w"` truncates the file once, when it is opened, and `"a"` keeps its content. Every `<<` chain appends one line. Assigning a string to a `file` variable opens the named file in append mode, and handles can be copied between `file` variables.
-
-Comments are `//` line comments. The keywords `int float bool string file true false read write if else while for open` are reserved.
+The full reference, from the operator table to the exact error messages, is in [LANGUAGE.md](LANGUAGE.md).
 
 ## Example
 
@@ -134,6 +112,7 @@ src/main/java/io/github/d3m1d0s/pjp/codegen/    instruction model and code gener
 src/main/java/io/github/d3m1d0s/pjp/runtime/    the stack machine
 src/test/java/io/github/d3m1d0s/pjp/            the JUnit test suite
 src/test/resources/                             sample programs and reference listings
+LANGUAGE.md
 pom.xml
 ```
 
