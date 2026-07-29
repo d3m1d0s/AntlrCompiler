@@ -215,7 +215,6 @@ public class CodeGeneratorVisitor extends io.github.d3m1d0s.pjp.LanguageBaseVisi
 
         if (floatComparison) {
             instructions.add(new Instruction(Instruction.OpCode.EQ_F));
-            return SymbolTable.Type.BOOL;
         } else if (leftType == rightType) {
             switch (leftType) {
                 case INT -> instructions.add(new Instruction(Instruction.OpCode.EQ_I));

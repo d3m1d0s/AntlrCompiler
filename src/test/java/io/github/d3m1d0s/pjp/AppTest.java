@@ -417,6 +417,56 @@ public class AppTest {
     }
 
     @Test
+    public void testNotEqualFloats() {
+        String input = """
+        bool r;
+        r = 1.5 != 2.5;
+        """;
+
+        List<Instruction> instr = generate(input);
+
+        List<String> expected = List.of(
+                "push B false", "save r",
+                "push F 1.5", "push F 2.5", "eq F", "not", "save r", "load r", "pop"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testNotEqualMixedIntAndFloat() {
+        String input = """
+        write 1 != 2.0;
+        """;
+
+        List<Instruction> instr = generate(input);
+
+        List<String> expected = List.of(
+                "push I 1", "itof", "push F 2.0", "eq F", "not", "print 1"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
+    }
+
+    @Test
+    public void testFloatInequalityRunsEndToEnd() throws IOException {
+        Path src = sourceFile("cli-floatneq.lang", """
+            write 1.5 != 2.5;
+            write 1.5 != 1.5;
+            write 1 != 2.0;
+            write 2.0 != 2;
+            """);
+        AppResult r = runApp("", src.toString());
+
+        assertEquals(0, r.exitCode());
+        assertEquals(List.of("true", "false", "true", "false"), r.stdout().lines().toList());
+    }
+
+    @Test
     public void testEqualBools() {
         String input = """
         bool a;
