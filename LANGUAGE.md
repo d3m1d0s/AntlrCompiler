@@ -295,39 +295,40 @@ The runtime messages:
 
 ## Grammar
 
-The complete grammar in plain notation. Brackets mean optional, braces mean repetition.
+The grammar in one notation. Quoted text is literal, a bar separates alternatives, brackets mark an optional part, braces mark zero or more repetitions and parentheses group alternatives.
 
 ```
-program        = { statement } , end-of-file
-statement      = ";"
-               | type name { "," name } ";"
-               | expression ";"
-               | "read" name { "," name } ";"
-               | "write" expression { "," expression } ";"
-               | "{" { statement } "}"
-               | "if" "(" expression ")" statement [ "else" statement ]
-               | "while" "(" expression ")" statement
-               | "for" "(" [ name "=" expression ] ";" [ expression ] ";"
-                           [ name "=" expression ] ")" statement
-type           = "int" | "float" | "bool" | "string" | "file"
+program    = { statement } end-of-file
 
-expression, one level per line, tightest first,
-binary operators group left to right:
-  prefix   !  -
-  binary   *  /  %
-  binary   +  -  .
-  binary   <  >  <=  >=
-  binary   ==  !=
-  binary   &&
-  binary   ||
-  binary   <<
-  primary  name "=" expression
-         | "open" "(" string "," string ")"
-         | "(" expression ")"
-         | name | integer | float | "true" | "false" | string
+statement  = ";"
+           | type name { "," name } ";"
+           | expression ";"
+           | "read" name { "," name } ";"
+           | "write" expression { "," expression } ";"
+           | "{" { statement } "}"
+           | "if" "(" expression ")" statement [ "else" statement ]
+           | "while" "(" expression ")" statement
+           | "for" "(" [ name "=" expression ] ";" [ expression ] ";"
+                       [ name "=" expression ] ")" statement
 
-integer  = decimal digits
-float    = digits "." digits
-string   = '"' text without line breaks '"'
-name     = letter or "_", then letters, digits, "_"
+type       = "int" | "float" | "bool" | "string" | "file"
+
+expression = or { "<<" or }
+or         = and { "||" and }
+and        = equality { "&&" equality }
+equality   = relation { ( "==" | "!=" ) relation }
+relation   = sum { ( "<" | ">" | "<=" | ">=" ) sum }
+sum        = term { ( "+" | "-" | "." ) term }
+term       = factor { ( "*" | "/" | "%" ) factor }
+factor     = "!" factor
+           | "-" factor
+           | primary
+primary    = name "=" expression
+           | "open" "(" string "," string ")"
+           | "(" expression ")"
+           | name | integer | float | "true" | "false" | string
 ```
+
+Binary operators are left-associative. Precedence comes from the way the rules nest, so the listing repeats the ladder under [Expressions](#expressions), loosest level first. Assignment is the one exception. The grammar treats it as a `primary`, so it can appear inside a larger expression, and the rest of the expression after the `=` belongs to it.
+
+`integer`, `float`, `string` and `name` are tokens and are described in [Literals](#literals) and [Names](#names). A reserved word cannot be used as a `name`. `end-of-file` marks the end of the source file, and a stray token after the last statement is a syntax error. The rules say nothing about comments and whitespace because the lexer drops them before parsing. They can appear between any two tokens.
