@@ -1,6 +1,6 @@
 # ANTLR Compiler
 
-[![Maven](https://github.com/d3m1d0s/PJP_antlr-compiler/actions/workflows/maven.yml/badge.svg?branch=master)](https://github.com/d3m1d0s/PJP_antlr-compiler/actions/workflows/maven.yml)
+[![Tests](https://github.com/d3m1d0s/PJP_antlr-compiler/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/d3m1d0s/PJP_antlr-compiler/actions/workflows/tests.yml)
 ![Java 17](https://img.shields.io/badge/Java-17-blue.svg)
 
 ## Overview
