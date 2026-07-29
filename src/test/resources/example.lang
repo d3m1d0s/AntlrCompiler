@@ -1,0 +1,7 @@
+int i;
+i = 1;
+while (i <= 3) {
+    write "i = ", i;
+    i = i + 1;
+}
+write "done";
