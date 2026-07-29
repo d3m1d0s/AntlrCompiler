@@ -7,8 +7,6 @@
 
 This is a compiler and stack machine interpreter for a small imperative language, built on ANTLR 4 and made as a semester project for the PJP course (Programming Languages and Compilers) at VSB-TUO. It parses a program, checks the types, generates stack machine instructions and executes them.
 
-The language has `int`, `float`, `bool`, `string` and `file` variables, C-like control flow with block scoping, console input and output, and file writing through the `<<` operator.
-
 The compiler grew out of the ANTLR interpreter labs in [PJP_practical-classes](https://github.com/d3m1d0s/PJP_practical-classes).
 
 ## Build and Run
