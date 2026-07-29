@@ -21,23 +21,10 @@ public class SymbolTable {
         public final Type type;
         // name used in generated instructions, unique across all scopes
         public final String runtimeName;
-        // holds only the type default, execution state lives in the stack machine
-        public Object value;
 
         public VariableInfo(Type type, String runtimeName) {
             this.type = type;
             this.runtimeName = runtimeName;
-            this.value = defaultValue(type);
-        }
-
-        private Object defaultValue(Type type) {
-            return switch (type) {
-                case INT -> 0;
-                case FLOAT -> 0.0;
-                case BOOL -> false;
-                case STRING -> "";
-                case FILE -> null;
-            };
         }
     }
 
@@ -90,14 +77,6 @@ public class SymbolTable {
             throw new IllegalStateException("Identifier was never resolved: " + id.getText());
         }
         return info;
-    }
-
-    public Type getType(String name) throws TypeException {
-        return resolve(name).type;
-    }
-
-    public Object getValue(String name) throws TypeException {
-        return resolve(name).value;
     }
 
     private VariableInfo resolve(String name) throws TypeException {

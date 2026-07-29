@@ -126,21 +126,26 @@ public class AppTest {
     }
 
     @Test
-    public void testInitialValues() throws TypeException {
-        SymbolTable st = new SymbolTable();
-        st.declare("n", SymbolTable.Type.INT);
-        st.declare("t", SymbolTable.Type.STRING);
-        assertEquals(0, st.getValue("n"));
-        assertEquals("", st.getValue("t"));
-    }
+    public void testDeclarationsEmitDefaults() {
+        String input = """
+        int n;
+        float f;
+        bool b;
+        string s;
+        """;
 
-    @Test
-    public void testBoolAndFloatDefaults() throws TypeException {
-        SymbolTable st = new SymbolTable();
-        st.declare("b", SymbolTable.Type.BOOL);
-        st.declare("f", SymbolTable.Type.FLOAT);
-        assertEquals(false, st.getValue("b"));
-        assertEquals(0.0, st.getValue("f"));
+        List<Instruction> instr = generate(input);
+
+        List<String> expected = List.of(
+                "push I 0", "save n",
+                "push F 0.0", "save f",
+                "push B false", "save b",
+                "push S \"\"", "save s"
+        );
+
+        for (int i = 0; i < expected.size(); i++) {
+            assertEquals(expected.get(i), instr.get(i).toString());
+        }
     }
 
     @Test(expected = TypeException.class)
@@ -148,12 +153,6 @@ public class AppTest {
         SymbolTable st = new SymbolTable();
         st.declare("x", SymbolTable.Type.INT);
         st.declare("x", SymbolTable.Type.FLOAT);
-    }
-
-    @Test(expected = TypeException.class)
-    public void testUndeclaredVariableThrowsException() throws TypeException {
-        SymbolTable st = new SymbolTable();
-        st.getType("y");
     }
 
     @Test
