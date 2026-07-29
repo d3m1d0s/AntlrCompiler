@@ -1,12 +1,17 @@
-package cz.university.runtime;
+package io.github.d3m1d0s.pjp.runtime;
 
-import cz.university.runtime.FileHandle;
+import io.github.d3m1d0s.pjp.StringEscapes;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+/**
+ * Interprets the text instruction listing emitted by the code generator.
+ * The instruction text is pinned by the reference listings in src/test/resources.
+ */
 public class StackMachine {
     private Stack<Object> stack = new Stack<>();
     private Map<String, Object> variables = new HashMap<>();
@@ -22,6 +27,7 @@ public class StackMachine {
             String line = instructions.get(i).trim();
             if (line.isEmpty()) continue;
 
+            // limit 3 keeps a quoted push operand with its spaces intact
             String[] parts = line.split("\\s+", 3);
             String command = parts[0];
 
@@ -74,9 +80,10 @@ public class StackMachine {
                     itof();
                     break;
                 case "label":
-                    // already processed
+                    // already indexed by preprocessLabels
                     break;
                 case "jmp":
+                    // one before the target: the loop increment lands on the label line, a no-op
                     i = jump(parts[1]) - 1;
                     break;
                 case "fjmp":
@@ -88,15 +95,13 @@ public class StackMachine {
                 case "fappend":
                     fappendN(Integer.parseInt(parts[1]));
                     break;
-                case "fwrite":
-                    fwrite(Integer.parseInt(parts[1]));
-                    break;
                 default:
-                    throw new RuntimeException("Unknown instruction: " + command);
+                    throw new MachineException("Unknown instruction: " + command);
             }
         }
     }
 
+    // index labels up front so jumps can target labels defined later
     private void preprocessLabels() {
         for (int i = 0; i < instructions.size(); i++) {
             String line = instructions.get(i).trim();
@@ -115,11 +120,16 @@ public class StackMachine {
                 stack.push(Integer.parseInt(value));
                 break;
             case "F":
-                stack.push(Float.parseFloat(value));
+                stack.push(Double.parseDouble(value));
                 break;
             case "S":
+                // generated operands are quoted and escaped; bare ones in hand-written listings pass through
                 if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
-                    value = value.substring(1, value.length() - 1);
+                    try {
+                        value = StringEscapes.decode(value);
+                    } catch (IllegalArgumentException e) {
+                        throw new MachineException("Malformed string operand: " + value);
+                    }
                 }
                 stack.push(value);
                 break;
@@ -127,7 +137,7 @@ public class StackMachine {
                 stack.push(Boolean.parseBoolean(value));
                 break;
             default:
-                throw new RuntimeException("Unknown PUSH type: " + type);
+                throw new MachineException("Unknown PUSH type: " + type);
         }
     }
 
@@ -137,7 +147,8 @@ public class StackMachine {
     }
 
     private void load(String varName) {
-        check(variables.containsKey(varName), "Variable '" + varName + "' not defined");
+        // every non-file declaration stores a default, so only an unopened file variable can be missing
+        check(variables.containsKey(varName), "Variable '" + varName + "' was never assigned a value");
         stack.push(variables.get(varName));
     }
 
@@ -166,25 +177,49 @@ public class StackMachine {
 
 
     private void read(String type) {
+        String typeName = switch (type) {
+            case "I" -> "int";
+            case "F" -> "float";
+            case "B" -> "bool";
+            case "S" -> "string";
+            default -> throw new MachineException("Unknown READ type: " + type);
+        };
+
+        String line;
         try {
-            switch (type) {
-                case "I":
-                    stack.push(Integer.parseInt(scanner.nextLine()));
-                    break;
-                case "F":
-                    stack.push(Float.parseFloat(scanner.nextLine()));
-                    break;
-                case "S":
-                    stack.push(scanner.nextLine());
-                    break;
-                case "B":
-                    stack.push(Boolean.parseBoolean(scanner.nextLine()));
-                    break;
-                default:
-                    throw new RuntimeException("Unknown READ type: " + type);
+            line = scanner.nextLine();
+        } catch (NoSuchElementException e) {
+            throw new MachineException("Input ended while reading " + typeName);
+        }
+
+        // string input is verbatim, the other types tolerate surrounding whitespace
+        String value = line.trim();
+        String invalid = "Invalid " + typeName + " input: \"" + line + "\"";
+        switch (type) {
+            case "I" -> {
+                try {
+                    stack.push(Integer.parseInt(value));
+                } catch (NumberFormatException e) {
+                    throw new MachineException(invalid);
+                }
             }
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid input during READ");
+            case "F" -> {
+                try {
+                    stack.push(Double.parseDouble(value));
+                } catch (NumberFormatException e) {
+                    throw new MachineException(invalid);
+                }
+            }
+            case "B" -> {
+                if (value.equalsIgnoreCase("true")) {
+                    stack.push(true);
+                } else if (value.equalsIgnoreCase("false")) {
+                    stack.push(false);
+                } else {
+                    throw new MachineException(invalid);
+                }
+            }
+            case "S" -> stack.push(line);
         }
     }
 
@@ -193,6 +228,7 @@ public class StackMachine {
         Object b = stack.pop();
         Object a = stack.pop();
 
+        // only mod arrives without a type suffix, and it is int-only
         if (type == null) type = "I";
 
         switch (type) {
@@ -210,23 +246,24 @@ public class StackMachine {
                     case "ge": stack.push(ai >= bi); break;
                     case "le": stack.push(ai <= bi); break;
                     case "eq": stack.push(ai == bi); break;
-                    default: throw new RuntimeException("Unsupported int operation: " + op);
+                    default: throw new MachineException("Unsupported int operation: " + op);
                 }
                 break;
             case "F":
-                float af = (a instanceof Integer) ? (Integer) a : (Float) a;
-                float bf = (b instanceof Integer) ? (Integer) b : (Float) b;
+                // widening ints is leniency for hand-written listings, generated code inserts itof
+                double af = (a instanceof Integer) ? (Integer) a : (Double) a;
+                double bf = (b instanceof Integer) ? (Integer) b : (Double) b;
                 switch (op) {
                     case "add": stack.push(af + bf); break;
                     case "sub": stack.push(af - bf); break;
                     case "mul": stack.push(af * bf); break;
-                    case "div": check(bf != 0.0f, "Division by zero"); stack.push(af / bf); break;
+                    case "div": check(bf != 0.0, "Division by zero"); stack.push(af / bf); break;
                     case "gt": stack.push(af > bf); break;
                     case "lt": stack.push(af < bf); break;
                     case "ge": stack.push(af >= bf); break;
                     case "le": stack.push(af <= bf); break;
                     case "eq": stack.push(af == bf); break;
-                    default: throw new RuntimeException("Unsupported float operation: " + op);
+                    default: throw new MachineException("Unsupported float operation: " + op);
                 }
                 break;
             case "S":
@@ -234,10 +271,8 @@ public class StackMachine {
                 String sb = (String) b;
                 if ("eq".equals(op)) {
                     stack.push(sa.equals(sb));
-                } else if ("concat".equals(op)) {
-                    stack.push(sa + sb);
                 } else {
-                    throw new RuntimeException("Unsupported string operation: " + op);
+                    throw new MachineException("Unsupported string operation: " + op);
                 }
                 break;
             case "B":
@@ -246,11 +281,11 @@ public class StackMachine {
                 if ("eq".equals(op)) {
                     stack.push(ba == bb);
                 } else {
-                    throw new RuntimeException("Unsupported boolean operation: " + op);
+                    throw new MachineException("Unsupported boolean operation: " + op);
                 }
                 break;
             default:
-                throw new RuntimeException("Unknown type for binary operation: " + type);
+                throw new MachineException("Unknown type for binary operation: " + type);
         }
     }
 
@@ -260,9 +295,9 @@ public class StackMachine {
         if (type.equals("I")) {
             stack.push(-((Integer) value));
         } else if (type.equals("F")) {
-            stack.push(-((Float) value));
+            stack.push(-((Double) value));
         } else {
-            throw new RuntimeException("Unknown UMINUS type: " + type);
+            throw new MachineException("Unknown UMINUS type: " + type);
         }
     }
 
@@ -282,17 +317,18 @@ public class StackMachine {
         switch (op) {
             case "and": stack.push(ba && bb); break;
             case "or": stack.push(ba || bb); break;
-            default: throw new RuntimeException("Unknown logical operation: " + op);
+            default: throw new MachineException("Unknown logical operation: " + op);
         }
     }
 
     private boolean toBoolean(Object value) {
+        // nonzero ints count as true, a leniency for hand-written listings
         if (value instanceof Integer) {
             return ((Integer) value) != 0;
         } else if (value instanceof Boolean) {
             return (Boolean) value;
         } else {
-            throw new RuntimeException("Unsupported type for boolean logic: " + value.getClass().getSimpleName());
+            throw new MachineException("Unsupported type for boolean logic: " + value.getClass().getSimpleName());
         }
     }
 
@@ -302,7 +338,7 @@ public class StackMachine {
         if (a instanceof Boolean bool) {
             stack.push(!bool);
         } else {
-            throw new RuntimeException("NOT applied to non-boolean");
+            throw new MachineException("NOT applied to non-boolean");
         }
     }
 
@@ -311,9 +347,10 @@ public class StackMachine {
         check(!stack.isEmpty(), "Stack underflow on ITOF");
         Object value = stack.pop();
         if (value instanceof Integer) {
-            stack.push(((Integer) value).floatValue());
+            stack.push(((Integer) value).doubleValue());
         } else {
-            stack.push(value); // already float
+            // non-ints pass through, generated code only applies itof to ints
+            stack.push(value);
         }
     }
 
@@ -322,18 +359,19 @@ public class StackMachine {
         return labels.get(label);
     }
 
+    // branches when the popped value is false; numbers truncate to int first
     private int fjump(String label, int currentIndex) {
         check(!stack.isEmpty(), "Stack underflow on FJMP");
         Object value = stack.pop();
         int intValue;
         if (value instanceof Integer) {
             intValue = (Integer) value;
-        } else if (value instanceof Float) {
-            intValue = ((Float) value).intValue();
+        } else if (value instanceof Double) {
+            intValue = ((Double) value).intValue();
         } else if (value instanceof Boolean) {
             intValue = ((Boolean) value) ? 1 : 0;
         } else {
-            throw new RuntimeException("Unsupported type for FJMP: " + value.getClass().getSimpleName());
+            throw new MachineException("Unsupported type for FJMP: " + value.getClass().getSimpleName());
         }
 
         if (intValue == 0) {
@@ -345,26 +383,37 @@ public class StackMachine {
 
     private void check(boolean condition, String errorMessage) {
         if (!condition) {
-            throw new RuntimeException(errorMessage);
+            throw new MachineException(errorMessage);
         }
     }
 
     private void fopen() {
-        check(!stack.isEmpty(), "Stack underflow on FOPEN");
+        check(stack.size() >= 2, "Stack underflow on FOPEN");
 
-        Object top = stack.pop();
+        Object mode = stack.pop();
+        Object name = stack.pop();
 
-        if (stack.isEmpty()) {
-            check(top instanceof String, "FOPEN expects string filename");
-            stack.push(new FileHandle((String) top, "a"));
-        } else {
-            Object filename = stack.pop();
-            Object mode = top;
+        check(name instanceof String, "FOPEN expects string filename");
+        check(mode instanceof String, "FOPEN expects string mode");
 
-            check(filename instanceof String, "FOPEN expects string filename");
-            check(mode instanceof String, "FOPEN expects string mode");
+        String filename = (String) name;
+        applyMode(filename, (String) mode);
+        stack.push(new FileHandle(filename));
+    }
 
-            stack.push(new FileHandle((String) filename, (String) mode));
+    // the mode applies only at open: "w" truncates, "a" keeps the existing content
+    private void applyMode(String filename, String mode) {
+        boolean keepContent;
+        switch (mode) {
+            case "w" -> keepContent = false;
+            case "a" -> keepContent = true;
+            default -> throw new MachineException("Unknown file mode: " + mode);
+        }
+
+        try (FileWriter fw = new FileWriter(filename, StandardCharsets.UTF_8, keepContent)) {
+            // the empty body is the point: opening creates the file and truncates it in "w"
+        } catch (IOException e) {
+            throw new MachineException("Failed to open file: " + filename, e);
         }
     }
 
@@ -382,42 +431,18 @@ public class StackMachine {
 
         FileHandle fileHandle = (FileHandle) handle;
 
-        try (FileWriter fw = new FileWriter(fileHandle.getName(), true);
+        try (FileWriter fw = new FileWriter(fileHandle.getName(), StandardCharsets.UTF_8, true);
              PrintWriter writer = new PrintWriter(fw)) {
             for (Object val : values) {
                 writer.print(val);
             }
             writer.println();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to append to file: " + fileHandle.getName());
+            throw new MachineException("Failed to append to file: " + fileHandle.getName(), e);
         }
+
+        // the file goes back on the stack so appends chain like expressions
+        stack.push(fileHandle);
     }
-
-    private void fwrite(int n) {
-        check(stack.size() >= n + 1, "Stack underflow on FWRITE");
-
-        List<Object> values = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            values.add(stack.pop());
-        }
-        Collections.reverse(values);
-
-        Object handle = stack.pop();
-        check(handle instanceof FileHandle, "FWRITE expects a FileHandle");
-
-        FileHandle fileHandle = (FileHandle) handle;
-
-        try (FileWriter fw = new FileWriter(fileHandle.getName(), false);
-             PrintWriter writer = new PrintWriter(fw)) {
-            for (Object val : values) {
-                writer.print(val);
-            }
-            writer.println();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to write to file: " + fileHandle.getName());
-        }
-    }
-
-
 
 }
