@@ -6,7 +6,7 @@
 
 ## Overview
 
-This is a compiler and stack machine interpreter for a small imperative language, built on ANTLR 4 and made as a semester project for the PJP course (Programming Languages and Compilers) at VSB-TUO. It parses a program, checks the types, generates stack machine instructions and executes them.
+This is a compiler and stack machine interpreter for a small imperative language, built on ANTLR 4 and initially made as a semester project for the PJP course (Programming Languages and Compilers) at VSB-TUO. It parses a program, checks the types, generates stack machine instructions and executes them.
 
 The compiler grew out of the ANTLR interpreter labs in [PJP_practical-classes](https://github.com/d3m1d0s/PJP_practical-classes).
 
